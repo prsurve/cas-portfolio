@@ -272,3 +272,35 @@ def test_returns_section_states_its_limits_and_asks_only_when_shown():
 def test_long_text_in_the_returns_table_wraps():
     """A skipped fund's reason is a sentence. Unwrapped, it pushed every other column off the screen at desktop width."""
     assert re.search(r"#returns td:first-child\s*\{[^}]*white-space:\s*normal", (STATIC / "app.css").read_text())
+
+
+def test_the_page_stores_only_display_settings_in_the_browser():
+    """Remembered things are settings under the 'portfolio.' prefix. Holdings, amounts and search text never go in."""
+    scripts = {p.name: p.read_text() for p in JS}
+    for name, js in scripts.items():
+        for call in re.findall(r"(?:localStorage|sessionStorage)\.(?:setItem|getItem)\(([^)]*)\)", js):
+            assert call.startswith(("KEY", "\"portfolio.")), f"{name}: storage key outside the portfolio. prefix: {call}"
+    holdings = scripts["holdings.js"]
+    assert 'prefs.set("holdingsView", viewState())' in holdings
+    view = re.search(r"const viewState = \(\) => \(\{(.*?)\}\);", holdings).group(1)
+    assert "query" not in view, "the search text must not be part of what is remembered or saved"
+    assert "cleanView(" in holdings, "values read back from storage are checked"
+
+
+def test_saved_views_have_a_dialog_with_an_error_area():
+    html = (STATIC / "index.html").read_text()
+    assert 'id="view-dialog"' in html and 'id="view-error" role="alert"' in html and 'maxlength="40"' in html
+
+
+def test_tablet_shell_override_comes_after_the_base_shell_rule():
+    """An earlier media rule silently lost to the later base rule (found by measuring the page at 900px)."""
+    css = (STATIC / "app.css").read_text()
+    base = css.index(".shell { display: grid; grid-template-columns: 176px")
+    tablet = css.rindex("@media (min-width: 641px) and (max-width: 900px)")
+    assert tablet > base and ".shell { grid-template-columns: 132px" in css[tablet:]
+
+
+def test_headings_that_receive_focus_do_not_show_a_ring():
+    css = (STATIC / "app.css").read_text()
+    assert re.search(r'h1\[tabindex="-1"\]:focus[^{]*\{\s*outline:\s*none', css)
+    assert "[tabindex]:focus-visible" in css, "other focusable things keep their ring"
