@@ -11,7 +11,9 @@ A self-hosted dashboard for Indian investors that shows all your stocks, ETFs, b
 - **A stock held at several brokers appears once,** with a line per account.
 - **Mutual funds come from one statement only,** the newest of the two, so nothing is counted twice.
 
-**Not covered yet:** live prices (values are as of the statement date), purchase cost for stocks (NSDL/CDSL statements don't include it), and US stocks.
+**Latest prices:** mutual funds can be valued at their latest public NAV (**Refresh NAVs**). Stocks, ETFs and bonds stay at their statement date for now.
+
+**Not covered yet:** latest prices for stocks, ETFs and bonds, purchase cost for stocks (NSDL/CDSL statements don't include it), and US stocks.
 
 > This is a personal tool, not financial advice, and not affiliated with NSDL, CDSL, CAMS or KFintech. Always check the numbers against your statement.
 
@@ -71,7 +73,7 @@ PYTHONPATH=src .venv/bin/python -m portfolio.importers.cas statement.pdf --diagn
 - The PDF is parsed in memory and never written to disk. The password is used only to open it.
 - The database keeps parsed holdings and mutual fund transactions only. It doesn't keep your PAN, name, address, phone, email, or full folio or client numbers (only the last 4 characters).
 - Uploads and deletions need a custom request header (CSRF protection), and the page sets a strict Content Security Policy.
-- Your data stays on your machine. Nothing is sent anywhere.
+- Your data stays on your machine. The app makes one kind of outbound request, only when you click **Refresh NAVs** (or run `python -m portfolio.prices`): a plain GET of AMFI's public NAV file at a fixed URL. It sends nothing about your holdings: no parameters, cookies or ISIN list. The file is matched locally and only the funds you hold are kept. Set `PORTFOLIO_FETCH_PRICES=false` to turn it off and keep the app fully offline.
 
 ## Reporting problems
 
@@ -92,6 +94,7 @@ src/portfolio/
   store.py             schema + data access (SQLite; Postgres-compatible)
   portfolio_view.py    dashboard numbers: merge by ISIN/scheme, totals, allocation
   history.py           value at each statement date (no double counting)
+  prices.py            latest fund NAVs from AMFI's public file
   changes.py           what changed between two statement dates
   app.py               FastAPI: upload, statements, portfolio JSON
   static/              dashboard page (vanilla JS)
