@@ -21,6 +21,7 @@ from portfolio.importers.cas import PARSER_VERSION, CasImportError, parse_pdf_by
 from portfolio.backup import BackupError, newest_age_days, safety_backup
 from portfolio.changes import compare
 from portfolio.history import value_history
+from portfolio.holdings import holding_detail
 from portfolio.portfolio_view import build_view
 from portfolio.prices import PriceFetchError
 from portfolio.refresh import refresh_all
@@ -169,6 +170,14 @@ def create_app(settings: Settings | None = None, store: Store | None = None,
     @app.get("/api/portfolio")
     def portfolio() -> dict[str, Any]:
         return build_view(store, settings.stale_after_days, concentration_alert_pct=settings.concentration_alert_pct)
+
+    @app.get("/api/holdings/{key:path}")
+    def holding(key: str) -> dict[str, Any]:
+        """One holding (ISIN, or a fund's name when it has none) with where each number comes from."""
+        found = holding_detail(store, key, settings.stale_after_days)
+        if found is None:
+            raise HTTPException(404, "No holding with that ISIN or name in the latest statements.")
+        return found
 
     @app.get("/api/history")
     def history() -> dict[str, Any]:
