@@ -66,4 +66,26 @@ assert.equal(T.toCsv(cols, []), 'Name,Qty,"Note, x"\r\n', "headers even when the
   assert.deepEqual(seen, ["abc", "x"], "usable again after firing");
 }
 
+// formatters: one rule for missing values, negatives, percentages and dates
+{
+  const F = T.fmt;
+  const nb = (x) => x.replace(/\u00a0/g, " ");  // Intl may use a no-break space
+  assert.equal(nb(F.money(1234567.4)), "₹12,34,567", "Indian digit grouping, no decimals");
+  assert.equal(nb(F.money(-1500)), "-₹1,500");
+  assert.equal(nb(F.money(0)), "₹0", "a real zero stays a zero");
+  for (const gap of [null, undefined, NaN, Infinity]) assert.equal(F.money(gap), "–", `missing: ${gap}`);
+  assert.equal(nb(F.price(1450.256)), "₹1,450.26");
+  assert.equal(F.price(null), "–");
+  assert.equal(F.quantity(12.34567), "12.346");
+  assert.equal(F.quantity(undefined), "–");
+  assert.equal(F.percent(4.2), "+4.2%");
+  assert.equal(F.percent(-0.5), "-0.5%");
+  assert.equal(F.percent(0), "0%");
+  assert.equal(F.percent(null), "–");
+  assert.match(F.day("2026-09-30"), /^30 \w+ 2026$/, "day, month name, year");
+  assert.equal(F.day("2026-09-30T23:59:59+00:00").slice(0, 2), "30", "time and zone never shift the day");
+  assert.equal(F.day(null), "–");
+  assert.equal(F.day(""), "–");
+}
+
 console.log("ok");

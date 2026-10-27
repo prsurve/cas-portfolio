@@ -9,6 +9,9 @@
   --warn-bg: #fff4e5;
   --warn: #8a4b00;
   --accent: #2557d6;
+  --on-accent: #ffffff;  /* text on an accent background */
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px;
+  --radius: 6px; --radius-lg: 8px;
   /* categorical chart colours, fixed order; validated in light and dark against the card surface */
   --series-1: #2a78d6;
   --series-2: #eb6834;
@@ -30,6 +33,7 @@
     --warn-bg: #3a2a12;
     --warn: #ffc46b;
     --accent: #7aa2ff;
+    --on-accent: #0b0b0b;
     --series-1: #3987e5;
     --series-2: #d95926;
     --series-3: #199e70;
@@ -45,18 +49,18 @@ h2 { font-size: 1.05rem; margin: 32px 0 12px; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 button, .btn {
-  font: inherit; font-size: 0.875rem; padding: 6px 14px; border-radius: 6px; cursor: pointer;
+  font: inherit; font-size: 0.875rem; padding: var(--space-2) var(--space-4); border-radius: var(--radius); cursor: pointer;
   border: 1px solid var(--border); background: var(--surface); color: var(--text); text-decoration: none; display: inline-block;
 }
 button:hover, .btn:hover { border-color: var(--accent); }
 a:focus-visible, button:focus-visible, .btn:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible,
 [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 
 #alerts .alert { background: var(--warn-bg); color: var(--warn); padding: 10px 14px; border-radius: 6px; margin-top: 16px; font-size: 0.9rem; }
 
 .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-top: 20px; }
-.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: var(--space-3) var(--space-4); }
 .tile .label { font-size: 0.8rem; color: var(--muted); }
 .tile .value { font-size: 1.35rem; font-weight: 600; margin-top: 4px; font-variant-numeric: tabular-nums; }
 .tile .sub { font-size: 0.8rem; margin-top: 2px; font-variant-numeric: tabular-nums; }
@@ -128,15 +132,16 @@ th button.sort::after { content: " " attr(data-arrow); color: var(--accent); }
 .alloc-card td.label { white-space: normal; width: 62%; }
 .alloc-card .bar { height: 8px; margin-top: 6px; background: var(--series-1); border-radius: 0 4px 4px 0; }
 .stack { display: flex; gap: 2px; height: 20px; margin: 6px 12px 10px; }
-.stack .seg { flex: 1 1 0; min-width: 4px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
+.stack .seg { flex: 1 1 0; min-width: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600; white-space: nowrap; color: #000; }
 .stack .seg:first-child { border-radius: 4px 0 0 4px; }
 .stack .seg:last-child { border-radius: 0 4px 4px 0; }
 .stack .seg:hover { opacity: 0.82; }
 .s0 { background: var(--muted); }
+.stack .s0 { color: var(--bg); }  /* the .seg rule is more specific, so the override must be too */
 .s1 { background: var(--series-1); }
 .s2 { background: var(--series-2); }
 .s3 { background: var(--series-3); }
-.s4 { background: var(--series-4); color: #0b0b0b; }
+.s4 { background: var(--series-4); }
 .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 8px; vertical-align: baseline; }
 
 .conc-cards { margin-top: 12px; }
@@ -145,11 +150,20 @@ th button.sort::after { content: " " attr(data-arrow); color: var(--accent); }
 .chips { display: flex; flex-wrap: wrap; gap: 4px 0; }
 .mobile-only { display: none; }
 
+/* Tablets: tighter page padding, three tiles across, and room for the search box to grow. */
+@media (min-width: 641px) and (max-width: 900px) {
+  body { padding: 20px 16px 56px; }
+  .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .toolbar input[type="search"] { flex: 1 1 230px; }
+}
+
 /* Phones: a table row becomes a card, with the column name beside each number (from data-label). */
 @media (max-width: 640px) {
   body { padding: 16px 12px 48px; }
   h2 { margin-top: 24px; }
   .mobile-only { display: flex; }
+  /* touch targets of at least 44px */
+  .btn, button:not(.sort), select, .toolbar input[type="search"], input[type="file"] { min-height: 44px; }
   .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .tile { padding: 10px 12px; }
   .tile .value { font-size: 1.15rem; }
@@ -174,3 +188,8 @@ th button.sort::after { content: " " attr(data-arrow); color: var(--accent); }
   table.cards tbody tr.holding[aria-expanded] td:first-child::after { content: "▾"; position: absolute; right: 2px; top: 0; color: var(--muted); }
   table.cards tbody tr.holding[aria-expanded="false"] td:first-child::after { content: "▸"; }
 }
+
+/* First-run steps and the retry button on a load error. */
+.steps { margin: 8px 0 0; padding-left: 22px; display: grid; gap: var(--space-2); font-size: 0.9rem; }
+#alerts .alert .btn { margin-left: var(--space-3); }
+#upload-result:focus { outline: none; }  /* focus is moved here so a screen reader reads the result; it is not a control */

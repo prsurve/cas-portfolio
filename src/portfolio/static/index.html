@@ -13,6 +13,20 @@
   </header>
 
   <div id="alerts" role="status" aria-live="polite"></div>
+  <p id="loading" class="subtle" role="status">Loading your portfolio…</p>
+
+  <section aria-labelledby="empty-h" id="empty-state" class="card" hidden>
+    <h2 id="empty-h">Start with your first statement</h2>
+    <p class="subtle">Nothing is stored yet. This takes about two minutes, and nothing leaves this machine.</p>
+    <ol class="steps">
+      <li><strong>Get the statement.</strong> Download a consolidated account statement (CAS) as a PDF from NSDL or CDSL.
+        It lists your stocks, ETFs, bonds and mutual fund folios.</li>
+      <li><strong>Upload it below</strong> with the PDF's password. NSDL and CDSL statements use your PAN in capitals.
+        The file is read in memory and not stored.</li>
+      <li><strong>Check the result.</strong> The page shows whether each account adds up to the total printed on the statement.
+        Anything that does not is listed under Data completeness, with what to do.</li>
+    </ol>
+  </section>
 
   <section aria-labelledby="upload-h" class="card">
     <h2 id="upload-h">Upload a statement</h2>
@@ -31,7 +45,7 @@
       </label>
       <button type="submit" class="btn primary" id="upload-btn">Upload</button>
     </form>
-    <div id="upload-result" aria-live="polite"></div>
+    <div id="upload-result" aria-live="polite" tabindex="-1"></div>
   </section>
 
   <section aria-labelledby="totals-h">
