@@ -28,7 +28,7 @@ from typing import Any
 
 # Bump when parsing changes what gets imported: re-uploading a file imported
 # by an older version then replaces it instead of being ignored as a duplicate.
-PARSER_VERSION = 4
+PARSER_VERSION = 5
 
 # Matched against the depository participant (DP) name printed on NSDL/CDSL statements.
 BROKER_PATTERNS: list[tuple[str, tuple[str, ...]]] = [
@@ -231,6 +231,7 @@ def from_mf_data(data: Any) -> ParsedStatement:
                 "amfi": s.amfi, "rta": s.rta, "scheme_type": s.type, "units": s.close,
                 "nav": s.valuation.nav, "nav_date": parse_date(s.valuation.date),
                 "cost": s.valuation.cost, "value": s.valuation.value,
+                "open_units": s.open, "history_from": st.period_from,
             })
     if st.mfs and all(m["cost"] is None for m in st.mfs):
         st.notes.append("This statement has no purchase cost, so gains can't be shown. "
@@ -338,6 +339,7 @@ def _add_folio_section(st: ParsedStatement, acct: Any) -> None:
             "scheme": clean_scheme_name(m.name) or m.isin, "isin": (m.isin or "").strip().upper() or None,
             "amfi": m.amfi, "rta": None, "scheme_type": m.type, "units": m.balance, "nav": m.nav,
             "nav_date": st.period_to, "cost": m.total_cost, "value": m.value,
+            "open_units": None, "history_from": None,
         }
         for m in acct.mutual_funds if m.balance or m.value
     ]

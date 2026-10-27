@@ -80,6 +80,11 @@ mf_holdings = Table(
     Column("nav_date", Date),
     Column("cost", NUM),
     Column("value", NUM),
+    # Units held when the statement's transaction list starts, and that start date.
+    # Null where the statement has no transactions (the folio section of an NSDL/CDSL CAS).
+    # Transactions alone describe the whole holding only when open_units is zero.
+    Column("open_units", NUM),
+    Column("history_from", Date),
 )
 
 mf_transactions = Table(
@@ -136,10 +141,13 @@ class Store:
 
     def _migrate(self) -> None:
         """Add columns introduced after a database was first created."""
+        money_ddl = "BIGINT" if self.engine.dialect.name == "sqlite" else "NUMERIC(24, 6)"
         added = [
             ("statements", "parser_version", "INTEGER NOT NULL DEFAULT 1"),
             ("stock_holdings", "asset_type", "VARCHAR(8) NOT NULL DEFAULT 'equity'"),
             ("stock_holdings", "symbol", "VARCHAR(32)"),
+            ("mf_holdings", "open_units", money_ddl),
+            ("mf_holdings", "history_from", "DATE"),
         ]
         inspector = inspect(self.engine)
         with self.engine.begin() as conn:

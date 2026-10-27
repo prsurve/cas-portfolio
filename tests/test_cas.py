@@ -452,3 +452,47 @@ def test_amc_for(isin, amc):
 ])
 def test_clean_scheme_name(name, expected):
     assert cas.clean_scheme_name(name) == expected
+
+
+# ---- mutual fund history completeness -------------------------------------------------
+
+
+def test_mf_holding_records_opening_units_and_history_start(mf_data):
+    flexi = cas.from_mf_data(mf_data).mfs[0]
+    assert flexi["open_units"] == D(0) and flexi["history_from"] == date(2026, 4, 1)
+
+
+def test_scheme_held_before_the_period_has_opening_units(mf_data):
+    s = mf_data.folios[0].schemes[0]
+    mf_data.folios[0].schemes[0] = s.model_copy(update={"open": D("40")})
+    flexi = cas.from_mf_data(mf_data).mfs[0]
+    assert flexi["open_units"] == D(40)  # history starts mid-holding: transactions alone are incomplete
+
+
+def test_folio_section_of_a_depository_statement_has_no_history(demat_data):
+    [m, *_] = cas.from_demat_data(demat_data).mfs
+    assert m["open_units"] is None and m["history_from"] is None
+
+
+def test_history_columns_round_trip_and_migrate(tmp_path, mf_data):
+    import sqlite3
+    from portfolio.store import mf_holdings
+    db = tmp_path / "old.db"
+    con = sqlite3.connect(db)  # an old database: mf_holdings without the new columns
+    con.executescript("""
+        CREATE TABLE mf_holdings (id INTEGER PRIMARY KEY, statement_id INTEGER NOT NULL, amc VARCHAR(256),
+            folio_masked VARCHAR(32), scheme VARCHAR(512) NOT NULL, isin VARCHAR(12), amfi VARCHAR(16),
+            rta VARCHAR(32), scheme_type VARCHAR(32), units BIGINT NOT NULL, nav BIGINT, nav_date DATE,
+            cost BIGINT, value BIGINT);
+        INSERT INTO mf_holdings VALUES (1, 1, NULL, '****1', 'S', NULL, NULL, NULL, NULL, 1000000, NULL, NULL,
+            NULL, NULL);
+        PRAGMA user_version = 1;
+    """)
+    con.commit()
+    con.close()
+    store = Store.from_url(f"sqlite:///{db}")
+    [old] = store.rows_for(mf_holdings, 1)
+    assert old["open_units"] is None and old["history_from"] is None
+    sid, _ = cas.save(store, cas.from_mf_data(mf_data), "new")
+    flexi = next(r for r in store.rows_for(mf_holdings, sid) if r["units"] == D("100.5"))
+    assert flexi["open_units"] == D(0) and flexi["history_from"] == date(2026, 4, 1)
