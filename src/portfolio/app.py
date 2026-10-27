@@ -124,7 +124,7 @@ def create_app(settings: Settings | None = None, store: Store | None = None,
 
     @app.get("/api/portfolio")
     def portfolio() -> dict[str, Any]:
-        return build_view(store, settings.stale_after_days)
+        return build_view(store, settings.stale_after_days, concentration_alert_pct=settings.concentration_alert_pct)
 
     @app.get("/api/history")
     def history() -> dict[str, Any]:
