@@ -69,12 +69,13 @@ def test_backup_needs_the_csrf_header_and_is_verified(env):
 def test_retention_keeps_only_the_newest(env, monkeypatch):
     client, _, settings, tmp = env
     settings.backup_keep = 2
-    stamps = iter(datetime(2026, 10, d, 9, 0, 0, tzinfo=timezone.utc) for d in (1, 2, 3))
+    days = [datetime(2026, 10, d, 9, 0, 0, tzinfo=timezone.utc) for d in (1, 2, 3)]
+    stamps = iter(days)
     monkeypatch.setattr(backup_module, "_now", lambda: next(stamps))
     for _ in range(3):
         assert client.post("/api/backups", headers=CSRF).status_code == 201
-    assert [b["name"] for b in client.get("/api/backups").json()["backups"]] == [
-        "portfolio-20261003-090000.db", "portfolio-20261002-090000.db"]
+    newest_two = [f"portfolio-{d:%Y%m%d-%H%M%S}.db" for d in (days[2], days[1])]
+    assert [b["name"] for b in client.get("/api/backups").json()["backups"]] == newest_two
 
 
 def test_a_failed_backup_is_503_and_leaks_nothing(env, monkeypatch):
