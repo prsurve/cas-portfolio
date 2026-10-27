@@ -1,24 +1,39 @@
-# Portfolio
+# cas-portfolio
 
-One dashboard for your mutual funds and stocks, built from the monthly statements you already receive. There are no broker logins and no API keys.
+A self-hosted dashboard for Indian investors that shows all your stocks, ETFs, bonds and mutual funds in one place. It's built from the monthly **Consolidated Account Statement (CAS)** PDFs you already receive. There are no broker logins, no API keys and no scraping.
 
 | You upload | It shows |
 |---|---|
-| CAS from **NSDL** or **CDSL** (enough on its own) | Stocks, ETFs, bonds/SGBs in every demat account, merged by ISIN, plus mutual fund folios with amount invested |
+| CAS from **NSDL** or **CDSL** (enough on its own) | Stocks, ETFs and bonds/SGBs in every demat account (any broker), merged by ISIN, plus mutual fund folios with amount invested |
 | CAS from **CAMS** or **KFintech** (optional) | Mutual funds with transaction history |
 
-Mutual funds come from one statement only, the newest of the two, so nothing is counted twice.
+- **Every account is checked against its statement total,** so you can see if anything wasn't read.
+- **A stock held at several brokers appears once,** with a line per account.
+- **Mutual funds come from one statement only,** the newest of the two, so nothing is counted twice.
 
-Not covered yet: Vested (US stocks), and purchase cost for stocks (it isn't on the NSDL/CDSL statement).
+**Not covered yet:** live prices (values are as of the statement date), purchase cost for stocks (NSDL/CDSL statements don't include it), and US stocks.
+
+> This is a personal tool, not financial advice, and not affiliated with NSDL, CDSL, CAMS or KFintech. Always check the numbers against your statement.
+
+## Getting your statements
+
+- **NSDL/CDSL CAS:** sent monthly by email by whichever depository holds your accounts, as a PDF whose password is your PAN in capitals.
+  - NSDL: subscribe at https://nsdlcas.nsdl.com/ under "Subscribe to e-CAS".
+  - CDSL: ask your broker to register your email for statements.
+- **CAMS/KFintech CAS (optional):** request a *detailed* statement from the CAMS or KFintech website. You choose its password when requesting it.
 
 ## Setup
 
+Requires Python 3.11 or newer.
+
 ```bash
+git clone https://github.com/prsurve/cas-portfolio.git
+cd cas-portfolio
 python3 -m venv .venv
-.venv/bin/pip install --index-url https://pypi.org/simple -r requirements.lock
+.venv/bin/pip install -r requirements.lock
 ```
 
-`requirements.lock` pins versions known to work on the Raspberry Pi (aarch64, Python 3.13).
+`requirements.lock` pins versions tested on Linux (aarch64, Python 3.13). On a Raspberry Pi, add `--index-url https://pypi.org/simple` if the piwheels mirror is slow.
 
 ## Run
 
@@ -29,54 +44,61 @@ PYTHONPATH=src .venv/bin/uvicorn portfolio.app:create_app --factory \
 
 Open http://127.0.0.1:8000.
 
-The app has no login of its own. Keep it bound to `127.0.0.1`. To reach it from other devices, put it behind Cloudflare Tunnel **with a Cloudflare Access policy** limited to your email.
+**The app has no login of its own.** Keep it bound to `127.0.0.1`. To reach it from other devices, use an SSH tunnel, or a reverse proxy or tunnel (such as Cloudflare Tunnel) with an access policy limited to you. Never expose it to the internet without authentication.
+
+Settings are optional; see [.env.example](.env.example). The database is `data/portfolio.db` by default.
 
 ## Upload a statement
 
-1. In the dashboard, choose the PDF and enter its password, then click **Upload**.
-   - NSDL/CDSL: the password is your PAN in capitals.
-   - CAMS/KFintech: the password you chose when requesting the statement.
-2. Check the summary it shows against the PDF:
-   - **Mutual funds:** number of funds, total value and amount invested.
-   - **Stocks:** each demat account is listed with its broker. Its "statement total" should match that account's value in the PDF summary.
+1. Choose the PDF and enter its password, then click **Upload**. If the password fails as typed, it's retried in capitals.
+2. Check the summary against the PDF:
+   - **Demat accounts:** each one shows "read ₹X of statement total ₹X". A red "missing" amount means some rows weren't read.
+   - **Mutual funds:** number of holdings, value and amount invested.
 3. If something looks wrong, delete the statement under **Imported statements**.
 
-Upload a new statement each month. The newest statement of each type replaces the older one on the dashboard. Uploading the same file twice does nothing.
+Upload a new statement each month. The newest statement replaces the older one on the dashboard. Uploading the same file twice does nothing.
 
-You can also check a PDF from the command line before importing it:
-
-```bash
-PYTHONPATH=src .venv/bin/python -m portfolio.importers.cas ~/cas/statement.pdf          # dry run
-PYTHONPATH=src .venv/bin/python -m portfolio.importers.cas ~/cas/statement.pdf --save   # import
-```
-
-If an account's rows don't add up to its statement total, the upload shows a warning with the missing amount. To see which rows weren't read:
+### Command line
 
 ```bash
-PYTHONPATH=src .venv/bin/python -m portfolio.importers.cas ~/cas/statement.pdf --diagnose
+PYTHONPATH=src .venv/bin/python -m portfolio.importers.cas statement.pdf             # dry run: print what was read
+PYTHONPATH=src .venv/bin/python -m portfolio.importers.cas statement.pdf --save      # import
+PYTHONPATH=src .venv/bin/python -m portfolio.importers.cas statement.pdf --diagnose  # list ISINs in the PDF that weren't imported
 ```
-
-This lists every ISIN printed in the PDF that wasn't imported, with the text around it. It runs locally and saves nothing.
 
 ## Privacy
 
 - The PDF is parsed in memory and never written to disk. The password is used only to open it.
-- The database keeps the parsed holdings and mutual fund transactions only. It doesn't keep your PAN, name, address, phone, email, or full folio or client numbers (only the last 4 characters).
-- Uploads and deletions need a custom request header, which blocks cross-site form attacks. The page sets a strict Content Security Policy.
+- The database keeps parsed holdings and mutual fund transactions only. It doesn't keep your PAN, name, address, phone, email, or full folio or client numbers (only the last 4 characters).
+- Uploads and deletions need a custom request header (CSRF protection), and the page sets a strict Content Security Policy.
+- Your data stays on your machine. Nothing is sent anywhere.
 
-## Test
+## Reporting problems
+
+Statements differ between depositories and over time. If an account doesn't add up, open an issue describing what kind of holding is missing and what its line looks like, with the numbers replaced by X. **Never attach your statement PDF or paste unredacted output:** it contains your PAN, account numbers and holdings.
+
+## Development
 
 ```bash
+.venv/bin/pip install pytest httpx
 .venv/bin/pytest -q
 ```
 
-## Layout
+Parser tests build their input from casparser's own data models, so a change in casparser's output breaks the tests rather than silently breaking imports. See [CLAUDE.md](CLAUDE.md) for the data rules and known statement quirks.
 
 ```
 src/portfolio/
-  importers/cas.py     parse CAMS/KFintech and NSDL/CDSL PDFs (casparser)
-  store.py             schema + data access (SQLite now, Postgres later)
+  importers/cas.py     parse NSDL/CDSL and CAMS/KFintech PDFs (via casparser), CLI, diagnose
+  store.py             schema + data access (SQLite; Postgres-compatible)
   portfolio_view.py    dashboard numbers: merge by ISIN/scheme, totals, allocation
   app.py               FastAPI: upload, statements, portfolio JSON
-  static/              dashboard page
+  static/              dashboard page (vanilla JS)
 ```
+
+## Credits
+
+PDF parsing is done by [casparser](https://github.com/codereverser/casparser) (MIT), including its bundled ISIN database.
+
+## License
+
+[MIT](LICENSE)
