@@ -49,7 +49,9 @@
   }
 
   // Calls fn once, `wait` ms after the last call. Used so typing in a search box redraws a table once, not per key.
-  function debounce(fn, wait, timers = { set: setTimeout, clear: clearTimeout }) {
+  // The default timers are wrapped, not passed as methods: browsers throw "Illegal invocation" if setTimeout is called
+  // with another object as `this`, which node does not (this once left the search box doing nothing).
+  function debounce(fn, wait, timers = { set: (f, w) => setTimeout(f, w), clear: (h) => clearTimeout(h) }) {
     let handle = null;
     return (...args) => {
       if (handle !== null) timers.clear(handle);
@@ -99,7 +101,75 @@
     return { page: m[1], arg };
   }
 
-  const api = { matchesQuery, sortRows, csvCell, toCsv, debounce, fmt, parseRoute };
+  // ---- remembered display settings ---------------------------------------------------------------------
+  // What the page remembers in this browser: how the holdings list is sorted and filtered, saved views, the two dates
+  // being compared, the theme and the last page. Settings only, never holdings, amounts or search text.
+
+  const HOLDING_CLASSES = ["all", "equity", "fund", "bond", "mf"];
+  const HOLDING_SORT_KEYS = ["name", "quantity", "price", "value", "gain", "latest", "weight"];
+  const MAX_VIEWS = 20;
+  const MAX_NAME = 40;
+
+  // Anything read back from storage is checked: a hand-edited or old value falls back to the default.
+  function cleanView(raw) {
+    const v = raw && typeof raw === "object" ? raw : {};
+    return {
+      cls: HOLDING_CLASSES.includes(v.cls) ? v.cls : "all",
+      amc: typeof v.amc === "string" && v.amc.length > 0 && v.amc.length <= 100 ? v.amc : "all",
+      multi: v.multi === true,
+      key: HOLDING_SORT_KEYS.includes(v.key) ? v.key : "value",
+      dir: v.dir === "asc" ? "asc" : "desc",
+    };
+  }
+  const cleanViewName = (name) => String(name === null || name === undefined ? "" : name).replace(/\s+/g, " ").trim().slice(0, MAX_NAME);
+
+  function cleanViews(raw) {
+    if (!Array.isArray(raw)) return [];
+    const seen = new Set(), out = [];
+    for (const item of raw) {
+      const name = cleanViewName(item && item.name);
+      if (!name || seen.has(name.toLowerCase())) continue;
+      seen.add(name.toLowerCase());
+      out.push({ name, view: cleanView(item.view) });
+      if (out.length === MAX_VIEWS) break;
+    }
+    return out;
+  }
+
+  // The saved views with one added, or replaced if the name is already used (ignoring case). Null if the name is empty.
+  function addView(views, name, view) {
+    const clean = cleanViewName(name);
+    if (!clean) return null;
+    const rest = views.filter((v) => v.name.toLowerCase() !== clean.toLowerCase());
+    return cleanViews([...rest, { name: clean, view }]);
+  }
+  const removeView = (views, name) => views.filter((v) => v.name !== name);
+
+  // Reads and writes JSON under "portfolio.<name>" in a storage object. A missing or blocked storage (private mode)
+  // makes every call do nothing and every read give the fallback.
+  function createPrefs(storage) {
+    const key = (name) => `portfolio.${name}`;
+    return {
+      get(name, fallback) {
+        try {
+          const raw = storage.getItem(key(name));
+          return raw === null ? fallback : JSON.parse(raw);
+        } catch (e) { return fallback; }
+      },
+      set(name, value) { try { storage.setItem(key(name), JSON.stringify(value)); } catch (e) { /* nothing to do */ } },
+      remove(name) { try { storage.removeItem(key(name)); } catch (e) { /* nothing to do */ } },
+      // Removes everything this app stored, and nothing else on the same site.
+      clearAll() {
+        try {
+          const mine = [];
+          for (let i = 0; i < storage.length; i += 1) if (String(storage.key(i)).startsWith("portfolio.")) mine.push(storage.key(i));
+          mine.forEach((k) => storage.removeItem(k));
+        } catch (e) { /* nothing to do */ }
+      },
+    };
+  }
+
+  const api = { matchesQuery, sortRows, csvCell, toCsv, debounce, fmt, parseRoute, cleanView, cleanViews, cleanViewName, addView, removeView, createPrefs, MAX_VIEWS };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.PortfolioTools = api;
 })(typeof self !== "undefined" ? self : this);

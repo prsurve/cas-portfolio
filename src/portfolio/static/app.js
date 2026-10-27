@@ -197,7 +197,10 @@ function setupChanges(points) {
   document.getElementById("changes-section").hidden = points.length < 2;
   if (points.length < 2) return;
   const from = document.getElementById("chg-from"), to = document.getElementById("chg-to");
-  const keep = [from.value, to.value];
+  // The dates the user chose last time, if both are still statement dates; otherwise the two latest.
+  const stored = prefs.get("compare", null);
+  const known = (d) => typeof d === "string" && points.some((pt) => pt.date === d);
+  const keep = from.value || to.value ? [from.value, to.value] : stored && known(stored.from) && known(stored.to) ? [stored.from, stored.to] : ["", ""];
   const fill = (select, wanted) => {
     select.replaceChildren(...points.map((pt) => el("option", { value: pt.date }, day(pt.date))));
     select.value = points.some((pt) => pt.date === wanted) ? wanted : "";
@@ -444,8 +447,13 @@ window.addEventListener("resize", () => {
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(redrawSized, 150);
 });
-document.getElementById("chg-from").addEventListener("change", loadChanges);
-document.getElementById("chg-to").addEventListener("change", loadChanges);
+// A date chosen here is remembered; the default (the two latest) is not, so new statements still move it forward.
+const compareChosen = () => {
+  prefs.set("compare", { from: document.getElementById("chg-from").value, to: document.getElementById("chg-to").value });
+  loadChanges();
+};
+document.getElementById("chg-from").addEventListener("change", compareChosen);
+document.getElementById("chg-to").addEventListener("change", compareChosen);
 initHoldings();
 initImports();
 initSettings();

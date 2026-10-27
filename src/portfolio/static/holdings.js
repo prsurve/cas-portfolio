@@ -4,7 +4,16 @@
 // (#/holdings/<isin>) that shows where each number comes from. Loaded before app.js; it uses app.js's helpers
 // (el, money, day, ...) only when its functions run, never while loading.
 
-const holdingsState = { query: "", cls: "all", amc: "all", multi: false, key: "value", dir: "desc" };
+// localStorage can be blocked (private mode), so it is only touched through createPrefs, which then does nothing.
+const prefs = (() => {
+  let storage = null;
+  try { storage = window.localStorage; } catch (e) { /* blocked: nothing is remembered */ }
+  return window.PortfolioTools.createPrefs(storage);
+})();
+
+// Search text is not remembered: it can hold the names of what you own. The rest of the view is.
+const holdingsState = { query: "", ...window.PortfolioTools.cleanView(prefs.get("holdingsView", null)) };
+let savedViews = window.PortfolioTools.cleanViews(prefs.get("savedViews", []));
 let currentHoldingKey = null;
 
 const HOLDING_SORT = {
@@ -277,12 +286,76 @@ async function showHoldings(key, moveFocus) {
   }
 }
 
+const viewState = () => ({ cls: holdingsState.cls, amc: holdingsState.amc, multi: holdingsState.multi, key: holdingsState.key, dir: holdingsState.dir });
+
+// Remember how the list is sorted and filtered, and keep the controls in step with the state.
+function persistHoldingsView() {
+  prefs.set("holdingsView", viewState());
+  syncViewsSelect();
+}
+
+function syncHoldingsControls() {
+  document.getElementById("holdings-class").value = holdingsState.cls;
+  document.getElementById("holdings-multi").checked = holdingsState.multi;
+  const amc = document.getElementById("holdings-amc");
+  if ([...amc.options].some((o) => o.value === holdingsState.amc)) amc.value = holdingsState.amc;
+}
+
+// The view being used, so that two saved views with identical settings are not mixed up.
+let activeViewName = null;
+
+// The select shows a saved view only while the current state still matches it exactly.
+function syncViewsSelect() {
+  const select = document.getElementById("views-select");
+  const now = JSON.stringify(viewState());
+  const matches = savedViews.filter((v) => JSON.stringify(v.view) === now);
+  const match = matches.find((v) => v.name === activeViewName) || matches[0] || null;
+  activeViewName = match ? match.name : null;
+  select.replaceChildren(el("option", { value: "" }, match ? "Choose a view" : savedViews.length ? "Current (not saved)" : "Current"),
+    ...savedViews.map((v) => el("option", { value: v.name }, v.name)));
+  select.value = match ? match.name : "";
+  document.getElementById("view-delete").hidden = !match;
+}
+
+function applyView(name) {
+  const found = savedViews.find((v) => v.name === name);
+  if (!found) return;
+  Object.assign(holdingsState, found.view);
+  activeViewName = found.name;
+  syncHoldingsControls();
+  persistHoldingsView();
+  if (lastPortfolio) renderHoldings(lastPortfolio);
+}
+
+// "saved", or the reason it was not: "empty" (no name) or "full" (the limit, and the name is new).
+function saveView(name) {
+  const clean = Tools.cleanViewName(name);
+  if (!clean) return "empty";
+  const replacing = savedViews.some((v) => v.name.toLowerCase() === clean.toLowerCase());
+  if (!replacing && savedViews.length >= Tools.MAX_VIEWS) return "full";
+  savedViews = Tools.addView(savedViews, clean, viewState());
+  prefs.set("savedViews", savedViews);
+  activeViewName = clean;
+  syncViewsSelect();
+  return "saved";
+}
+
+// Back to the defaults, used by "Reset display settings".
+function resetHoldingsView() {
+  Object.assign(holdingsState, { query: "", ...Tools.cleanView(null) });
+  savedViews = [];
+  document.getElementById("holdings-q").value = "";
+  syncHoldingsControls();
+  syncViewsSelect();
+  if (lastPortfolio) renderHoldings(lastPortfolio);
+}
+
 function initHoldings() {
-  const rerender = () => lastPortfolio && renderHoldings(lastPortfolio);
+  const rerender = () => { persistHoldingsView(); if (lastPortfolio) renderHoldings(lastPortfolio); };
   makeSortable("holdings", holdingsState, rerender);
   setupMobileSort("holdings", holdingsState, rerender);
   document.getElementById("holdings-q").addEventListener("input",
-    Tools.debounce((e) => { holdingsState.query = e.target.value; rerender(); }, 150));
+    Tools.debounce((e) => { holdingsState.query = e.target.value; if (lastPortfolio) renderHoldings(lastPortfolio); }, 150));
   document.getElementById("holdings-class").addEventListener("change", (e) => { holdingsState.cls = e.target.value; rerender(); });
   document.getElementById("holdings-amc").addEventListener("change", (e) => { holdingsState.amc = e.target.value; rerender(); });
   document.getElementById("holdings-multi").addEventListener("change", (e) => { holdingsState.multi = e.target.checked; rerender(); });
@@ -291,4 +364,33 @@ function initHoldings() {
     const dates = [lastPortfolio.statements.demat, lastPortfolio.statements.mf].filter(Boolean).map((s) => s.period_to).sort();
     downloadCsv(`holdings-${dates[dates.length - 1] || "all"}.csv`, Tools.toCsv(HOLDING_CSV, visibleHoldings(lastPortfolio)));
   });
+
+  // saved views
+  const dialog = document.getElementById("view-dialog"), nameInput = document.getElementById("view-name");
+  document.getElementById("views-select").addEventListener("change", (e) => { if (e.target.value) applyView(e.target.value); });
+  const viewError = document.getElementById("view-error");
+  document.getElementById("view-save").addEventListener("click", () => {
+    nameInput.value = "";
+    viewError.textContent = "";
+    dialog.showModal();
+    nameInput.focus();
+  });
+  document.getElementById("view-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const result = saveView(nameInput.value);
+    if (result === "saved") { dialog.close(); return; }
+    viewError.textContent = result === "full"
+      ? `You can keep up to ${Tools.MAX_VIEWS} saved views. Delete one first, or reuse a name to replace it.`
+      : "Give the view a name.";
+    nameInput.focus();
+  });
+  document.getElementById("view-cancel").addEventListener("click", () => dialog.close());
+  document.getElementById("view-delete").addEventListener("click", () => {
+    const name = document.getElementById("views-select").value;
+    savedViews = Tools.removeView(savedViews, name);
+    prefs.set("savedViews", savedViews);
+    syncViewsSelect();
+  });
+  syncHoldingsControls();
+  syncViewsSelect();
 }
