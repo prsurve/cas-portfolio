@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 
 STATIC = Path(__file__).resolve().parent.parent / "src" / "portfolio" / "static"
-JS = [STATIC / "app.js", STATIC / "tools.js", STATIC / "nav.js"]
+JS = [STATIC / "app.js", STATIC / "tools.js", STATIC / "nav.js", STATIC / "holdings.js"]
 
 # Validated with the dataviz skill's scripts/validate_palette.js against this app's card surfaces
 # (adjacent pairs, light #ffffff and dark #1f1f1d). Change a hex and the check must be run again.
@@ -54,10 +54,10 @@ def test_nothing_can_stretch_the_page_sideways():
 def test_every_table_column_has_a_phone_label():
     """On a phone a row becomes a card and each number is labelled from data-label. A new column needs a label."""
     html = (STATIC / "index.html").read_text()
-    js = (STATIC / "app.js").read_text()
+    js = "".join(p.read_text() for p in JS)
     assert "@media (max-width: 640px)" in (STATIC / "app.css").read_text()
     tables = re.findall(r'<table id="(\w+)" class="cards">(.*?)</table>', html, re.S)
-    assert {t[0] for t in tables} == {"history", "changes", "funds", "stocks", "statements"}
+    assert {t[0] for t in tables} == {"history", "changes", "holdings", "statements"}
     for table_id, body in tables:
         headings = re.findall(r"<th[^>]*>(.*?)</th>", body, re.S)
         for index, raw in enumerate(headings):
@@ -82,8 +82,8 @@ def test_screen_reader_text_does_not_wrap():
 
 
 def test_search_boxes_are_debounced():
-    js = (STATIC / "app.js").read_text()
-    assert js.count("Tools.debounce(") == 2
+    js = "".join(p.read_text() for p in JS)
+    assert js.count("Tools.debounce(") == 1, "the one search box is debounced"
 
 
 def _theme_colours():
@@ -136,8 +136,9 @@ def test_there_is_a_tablet_breakpoint_and_big_touch_targets():
 def test_every_element_the_script_looks_up_exists_in_the_page():
     """A renamed or removed id would otherwise fail only in the browser, as a null error."""
     html = (STATIC / "index.html").read_text()
-    ids = set(re.findall(r'id="([\w-]+)"', html))
-    wanted = set(re.findall(r'getElementById\("([\w-]+)"\)', (STATIC / "app.js").read_text()))
+    scripts = "".join(p.read_text() for p in JS)
+    ids = set(re.findall(r'id="([\w-]+)"', html)) | set(re.findall(r'\bid: "([\w-]+)"', scripts))  # JS can create ids too
+    wanted = set(re.findall(r'getElementById\("([\w-]+)"\)', scripts))
     assert wanted - ids == set(), f"app.js looks up ids that index.html lacks: {sorted(wanted - ids)}"
 
 
@@ -162,7 +163,7 @@ def test_shell_has_landmarks_skip_link_and_one_page_per_nav_link():
     for page in pages:  # each page has its own h1, which receives focus on navigation
         assert f'<h1 id="{page}-title" tabindex="-1">' in html
     assert html.count("<h1") == len(pages), "one h1 per page"
-    assert html.index("/static/tools.js") < html.index("/static/nav.js") < html.index("/static/app.js")
+    assert html.index("/static/tools.js") < html.index("/static/nav.js") < html.index("/static/holdings.js") < html.index("/static/app.js")
 
 
 def test_every_table_and_control_lives_inside_a_page():
@@ -204,3 +205,15 @@ def test_data_quality_lists_what_needs_attention_first_and_folds_the_rest():
     js = (STATIC / "app.js").read_text()
     assert "failing.map(checkItem)" in js and "passing.map(checkItem)" in js
     assert 'id="completeness-ok"' in (STATIC / "index.html").read_text()
+
+
+def test_el_flattens_nested_children():
+    """A nested array of elements reached the page as '[object HTMLElement]' until el() flattened all levels."""
+    assert "children.flat(Infinity)" in (STATIC / "app.js").read_text()
+
+
+def test_nothing_that_can_be_null_is_passed_straight_to_replaceChildren():
+    """replaceChildren(null) prints the word 'null'. Optional pieces go inside el(), which skips null."""
+    js = (STATIC / "holdings.js").read_text()
+    detail = js[js.index("function renderHoldingDetail"):js.index("// Shows the list")]
+    assert detail.count("replaceChildren(el(") == 1, "the detail view builds one el() wrapper"

@@ -96,65 +96,47 @@
 
     <div class="page" id="page-holdings" data-page="holdings" hidden>
       <h1 id="holdings-title" tabindex="-1">Holdings</h1>
-      <section aria-labelledby="funds-h" id="funds-section" hidden>
-        <h2 id="funds-h">Mutual fund folios <span class="subtle" id="funds-asof"></span></h2>
-        <div class="toolbar">
-          <label class="mobile-only">Sort <select id="funds-sort"></select></label>
-          <label>Search <input type="search" id="funds-q" placeholder="Scheme, fund house or ISIN" autocomplete="off"></label>
-          <button type="button" class="btn" id="funds-csv">Export CSV</button>
-          <span class="subtle" id="funds-count" role="status" aria-live="polite"></span>
-        </div>
-        <div class="table-wrap">
-          <table id="funds" class="cards">
-            <thead>
-              <tr>
-                <th scope="col" data-sort="scheme">Scheme</th>
-                <th scope="col" class="num" data-sort="units">Units</th>
-                <th scope="col" class="num" data-sort="nav">NAV</th>
-                <th scope="col" class="num" data-sort="cost">Invested</th>
-                <th scope="col" class="num" data-sort="value">Value</th>
-                <th scope="col" class="num" data-sort="gain">Gain</th>
-                <th scope="col" class="num" data-sort="latest">At latest NAV</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </section>
-      <section aria-labelledby="stocks-h" id="stocks-section" hidden>
-        <h2 id="stocks-h">Demat holdings <span class="subtle" id="stocks-asof"></span></h2>
-        <div class="toolbar">
-          <label class="mobile-only">Sort <select id="stocks-sort"></select></label>
-          <label>Search <input type="search" id="stocks-q" placeholder="Name, symbol, ISIN or broker" autocomplete="off"></label>
-          <label>Type
-            <select id="stocks-type">
-              <option value="all">All</option>
-              <option value="equity">Stocks</option>
-              <option value="fund">ETFs &amp; funds</option>
-              <option value="bond">Bonds &amp; SGBs</option>
-            </select>
-          </label>
-          <label class="filter"><input type="checkbox" id="multi-only"> Held in more than one demat account</label>
-          <button type="button" class="btn" id="stocks-csv">Export CSV</button>
-          <span class="subtle" id="stocks-count" role="status" aria-live="polite"></span>
-        </div>
-        <div class="table-wrap">
-          <table id="stocks" class="cards">
-            <thead>
-              <tr>
-                <th scope="col" data-sort="name">Holding</th>
-                <th scope="col" class="num" data-sort="quantity">Quantity</th>
-                <th scope="col" class="num" data-sort="price">Price</th>
-                <th scope="col" class="num" data-sort="value">Value</th>
-                <th scope="col" class="num" data-sort="latest">At latest price</th>
-                <th scope="col" class="num" data-sort="weight">Weight</th>
-                <th scope="col" data-sort="brokers">Brokers</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </section>
+      <div id="holdings-list">
+        <p id="holdings-empty" class="subtle" hidden>No holdings yet. <a href="#/imports">Upload a statement</a> to see them here.</p>
+        <section aria-labelledby="holdings-h" id="holdings-section" hidden>
+          <h2 id="holdings-h">All holdings <span class="subtle" id="holdings-asof"></span></h2>
+          <div class="toolbar">
+            <label class="mobile-only">Sort <select id="holdings-sort"></select></label>
+            <label>Search <input type="search" id="holdings-q" placeholder="Name, symbol, ISIN, fund house or broker" autocomplete="off"></label>
+            <label>Type
+              <select id="holdings-class">
+                <option value="all">All</option>
+                <option value="equity">Stocks</option>
+                <option value="fund">ETFs &amp; demat funds</option>
+                <option value="bond">Bonds &amp; SGBs</option>
+                <option value="mf">Mutual funds (folios)</option>
+              </select>
+            </label>
+            <label>Fund house <select id="holdings-amc"></select></label>
+            <label class="filter"><input type="checkbox" id="holdings-multi"> In more than one account or folio</label>
+            <button type="button" class="btn" id="holdings-csv">Export CSV</button>
+            <span class="subtle" id="holdings-count" role="status" aria-live="polite"></span>
+          </div>
+          <div class="table-wrap">
+            <table id="holdings" class="cards">
+              <thead>
+                <tr>
+                  <th scope="col" data-sort="name">Holding</th>
+                  <th scope="col" class="num" data-sort="quantity">Quantity</th>
+                  <th scope="col" class="num" data-sort="price">Price</th>
+                  <th scope="col" class="num" data-sort="value">Value</th>
+                  <th scope="col" class="num" data-sort="gain">Gain</th>
+                  <th scope="col" class="num" data-sort="latest">At latest price</th>
+                  <th scope="col" class="num" data-sort="weight">Weight</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <section aria-label="Holding detail" id="holding-detail" hidden></section>
     </div>
 
     <div class="page" id="page-performance" data-page="performance" hidden>
@@ -272,6 +254,7 @@
 
   <script src="/static/tools.js"></script>
   <script src="/static/nav.js"></script>
+  <script src="/static/holdings.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

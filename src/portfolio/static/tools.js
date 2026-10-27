@@ -77,13 +77,19 @@
     day: (iso) => (iso ? date.format(new Date(`${String(iso).slice(0, 10)}T00:00:00`)) : MISSING),
   };
 
-  // "#/holdings" gives "holdings" if it is one of `pages`, otherwise null (so "#main" or a typo changes nothing).
-  function route(hash, pages) {
-    const m = /^#\/([a-z]+)\/?$/.exec(String(hash || ""));
-    return m && pages.includes(m[1]) ? m[1] : null;
+  // "#/holdings" gives { page: "holdings", arg: null }; "#/holdings/INE009A01021" adds the argument (decoded).
+  // Anything that is not a known page ("#main", a typo) gives null, so it changes nothing.
+  function parseRoute(hash, pages) {
+    const m = /^#\/([a-z]+)(?:\/(.*))?$/.exec(String(hash || ""));
+    if (!m || !pages.includes(m[1])) return null;
+    let arg = null;
+    if (m[2]) {
+      try { arg = decodeURIComponent(m[2]); } catch (e) { return null; }
+    }
+    return { page: m[1], arg };
   }
 
-  const api = { matchesQuery, sortRows, csvCell, toCsv, debounce, fmt, route };
+  const api = { matchesQuery, sortRows, csvCell, toCsv, debounce, fmt, parseRoute };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.PortfolioTools = api;
 })(typeof self !== "undefined" ? self : this);

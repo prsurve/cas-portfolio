@@ -150,7 +150,7 @@ th button.sort::after { content: " " attr(data-arrow); color: var(--accent); }
 #conc-tiles { margin-bottom: 4px; }
 
 .chips { display: flex; flex-wrap: wrap; gap: 4px 0; }
-.mobile-only { display: none; }
+.toolbar .mobile-only { display: none; }  /* as specific as `.toolbar label`, which would otherwise show it on desktop */
 
 /* Tablets: tighter page padding, three tiles across, and room for the search box to grow. */
 @media (min-width: 641px) and (max-width: 900px) {
@@ -163,7 +163,7 @@ th button.sort::after { content: " " attr(data-arrow); color: var(--accent); }
 @media (max-width: 640px) {
   body { padding: 16px 12px 48px; }
   h2 { margin-top: 24px; }
-  .mobile-only { display: flex; }
+  .toolbar .mobile-only { display: flex; }
   /* touch targets of at least 44px */
   .btn, button:not(.sort), select, .toolbar input[type="search"], input[type="file"] { min-height: 44px; }
   .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
@@ -232,3 +232,22 @@ main { min-width: 0; }
 .movers li { display: flex; justify-content: space-between; gap: var(--space-3); padding: var(--space-2) 0; border-bottom: 1px solid var(--border); }
 .movers li:last-child { border-bottom: 0; }
 .movers .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Holding detail */
+a.symbol { color: var(--text); text-decoration: none; font-weight: 600; }
+a.symbol:hover { text-decoration: underline; color: var(--accent); }
+#holding-detail h3 { font-size: 1rem; margin: var(--space-5) 0 var(--space-2); }
+.calcs { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr)); gap: var(--space-3); }
+.calc { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: var(--space-3) var(--space-4); }
+.calc h4, .card h4 { margin: 0 0 var(--space-1); font-size: 0.9rem; }
+.calc-value { font-size: 1.25rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.calc p { margin: var(--space-2) 0 0; font-size: 0.85rem; }
+.calc-inputs { display: grid; grid-template-columns: 1fr auto; gap: 2px var(--space-3); margin: var(--space-2) 0 0; font-size: 0.85rem; }
+.calc-inputs dt { color: var(--muted); }
+.calc-inputs dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.limit { display: flex; gap: var(--space-2); color: var(--warn); }
+.limit .mark { font-weight: 700; }
+.parts { list-style: none; margin: 0; padding: 0; }
+.parts li { display: flex; justify-content: space-between; gap: var(--space-3); padding: var(--space-1) 0; font-size: 0.9rem; }
+#holdings td:first-child { white-space: normal; min-width: 180px; max-width: 320px; }
+#holdings td:nth-child(5) .subtle { white-space: normal; }  /* only the gain note may wrap; dates stay on one line */

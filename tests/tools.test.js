@@ -88,13 +88,15 @@ assert.equal(T.toCsv(cols, []), 'Name,Qty,"Note, x"\r\n', "headers even when the
   assert.equal(F.day(""), "–");
 }
 
-// route: only known pages count, so "#main" or a typo changes nothing
+// parseRoute: only known pages count, so "#main" or a typo changes nothing; a second part is the argument
 {
   const pages = ["overview", "holdings"];
-  assert.equal(T.route("#/holdings", pages), "holdings");
-  assert.equal(T.route("#/holdings/", pages), "holdings");
-  for (const bad of ["", "#", "#main", "#/nope", "#/holdings/INE009A01021", "#/Holdings", null, undefined]) {
-    assert.equal(T.route(bad, pages), null, `ignored: ${bad}`);
+  assert.deepEqual(T.parseRoute("#/holdings", pages), { page: "holdings", arg: null });
+  assert.deepEqual(T.parseRoute("#/holdings/", pages), { page: "holdings", arg: null });
+  assert.deepEqual(T.parseRoute("#/holdings/INE009A01021", pages), { page: "holdings", arg: "INE009A01021" });
+  assert.deepEqual(T.parseRoute("#/holdings/Some%20Fund%2FPlan", pages), { page: "holdings", arg: "Some Fund/Plan" });
+  for (const bad of ["", "#", "#main", "#/nope", "#/Holdings", "#/holdings/%E0%A4%A", null, undefined]) {
+    assert.equal(T.parseRoute(bad, pages), null, `ignored: ${bad}`);
   }
 }
 
