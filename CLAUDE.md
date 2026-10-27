@@ -69,7 +69,7 @@ There is no `--reload`, so restart the server after code changes.
 - **`mf_holdings.open_units` / `history_from`** record the units held when a CAMS/KFintech statement's transaction list starts, and that date. Transactions describe the whole holding only when `open_units` is zero, so XIRR and gains must skip any fund where it isn't. Both are null for the folio section of an NSDL/CDSL statement and for statements imported before parser version 5 (re-upload the CAMS PDF to fill them).
 - **Folio rows carry `total_cost`** (amount invested) when the statement prints that column, and no AMC name. The AMC comes from the ISIN issuer code (`AMC_BY_ISSUER`, characters 4–7).
 - **The diagnose output also lists ISINs that aren't problems:** mutual fund scheme description blocks ("ISIN : … RTA : …") and securities sold during the period (transactions only). It labels the likely reason for each.
-- **Wrong password** raises `IncorrectPasswordError`; an unknown issuer raises `CASParseError`. Both become a user-facing `CasImportError`.
+- **Wrong password** raises `IncorrectPasswordError`; an unknown issuer raises `CASParseError`. Both become a user-facing `CasImportError`. Each carries a short `code`; the audit log records only that code, never the message, since parser messages can quote statement text.
 
 ## Conventions
 

@@ -51,7 +51,15 @@ ISSUER_LABEL = {"CAMS": "CAMS", "KFINTECH": "KFintech", "NSDL": "NSDL", "CDSL": 
 
 
 class CasImportError(RuntimeError):
-    """A user-facing problem with the uploaded statement."""
+    """A user-facing problem with the uploaded statement.
+
+    `code` is a short fixed label. It is what the audit log records, because
+    the message can quote text from the statement.
+    """
+
+    def __init__(self, message: str, code: str = "import_error") -> None:
+        super().__init__(message)
+        self.code = code
 
 
 def map_broker(dp_name: str | None) -> str | None:
@@ -390,11 +398,12 @@ def parse_pdf_bytes(pdf: bytes, password: str) -> ParsedStatement:
             break
         except IncorrectPasswordError as exc:
             if i == len(candidates) - 1:
-                raise CasImportError(WRONG_PASSWORD) from exc
+                raise CasImportError(WRONG_PASSWORD, code="wrong_password") from exc
         except ParserException as exc:
-            raise CasImportError(f"Could not read this statement: {exc}") from exc
+            raise CasImportError(f"Could not read this statement: {exc}", code="unreadable") from exc
         except Exception as exc:  # pdfium raises its own errors for damaged or non-PDF files
-            raise CasImportError(f"Could not open this file as a PDF ({type(exc).__name__}).") from exc
+            raise CasImportError(f"Could not open this file as a PDF ({type(exc).__name__}).",
+                                 code="not_pdf") from exc
 
     issuer = _enum_name(data.file_type)
     kind = ISSUER_KIND.get(issuer)
@@ -403,9 +412,9 @@ def parse_pdf_bytes(pdf: bytes, password: str) -> ParsedStatement:
     elif kind == "demat":
         st = from_demat_data(data)
     else:
-        raise CasImportError(f"Unsupported statement issuer: {issuer}")
+        raise CasImportError(f"Unsupported statement issuer: {issuer}", code="unsupported_issuer")
     if st.period_to is None:
-        raise CasImportError("Could not read the statement period from this PDF.")
+        raise CasImportError("Could not read the statement period from this PDF.", code="no_period")
     return st
 
 
@@ -474,7 +483,7 @@ def diagnose(pdf: bytes, password: str, st: ParsedStatement) -> list[tuple[int, 
         except pdfium.PdfiumError:
             continue
     if doc is None:
-        raise CasImportError(WRONG_PASSWORD)
+        raise CasImportError(WRONG_PASSWORD, code="wrong_password")
 
     found: dict[str, tuple[int, str]] = {}
     try:
