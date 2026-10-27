@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily portfolio database backup
+
+[Timer]
+OnCalendar=*-*-* 02:30:00
+# If the Pi was off at that time, run once it is back.
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

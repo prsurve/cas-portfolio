@@ -1,0 +1,11 @@
+[Unit]
+Description=Refresh public prices (AMFI NAVs, NSE and BSE closes)
+
+[Service]
+Type=oneshot
+WorkingDirectory=@APP_DIR@
+Environment=PYTHONPATH=src
+# Exits with an error if PORTFOLIO_FETCH_PRICES=false, so remove the timer if you keep the app offline.
+ExecStart=@APP_DIR@/.venv/bin/python -m portfolio.prices
+UMask=0077
+NoNewPrivileges=yes

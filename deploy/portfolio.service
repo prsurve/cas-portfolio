@@ -1,0 +1,18 @@
+[Unit]
+Description=Portfolio dashboard (localhost only)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=@APP_DIR@
+Environment=PYTHONPATH=src
+# Bound to 127.0.0.1 on purpose: reach it remotely through Cloudflare Tunnel with Access, never directly.
+ExecStart=@APP_DIR@/.venv/bin/uvicorn portfolio.app:create_app --factory --host 127.0.0.1 --port 8000 --no-access-log
+Restart=on-failure
+RestartSec=5
+# Files it creates (the database, backups) are readable by you only.
+UMask=0077
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,10 @@
+[Unit]
+Description=Back up the portfolio database
+
+[Service]
+Type=oneshot
+WorkingDirectory=@APP_DIR@
+Environment=PYTHONPATH=src
+ExecStart=@APP_DIR@/.venv/bin/python -m portfolio.backup create
+UMask=0077
+NoNewPrivileges=yes
