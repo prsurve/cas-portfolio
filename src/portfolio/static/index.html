@@ -57,7 +57,7 @@
       </section>
 
       <section aria-labelledby="fresh-h" id="fresh-section" hidden>
-        <h2 id="fresh-h">How current is this?</h2>
+        <h2 id="fresh-h">Where the data comes from</h2>
         <div class="card"><ul id="freshness" class="checks"></ul></div>
       </section>
 
@@ -79,6 +79,15 @@
             <summary id="completeness-ok-summary"></summary>
             <ul id="completeness-passed" class="checks"></ul>
           </details>
+          <h3>What each figure rests on</h3>
+          <div class="table-wrap">
+            <table id="figures" class="cards">
+              <thead>
+                <tr><th scope="col">Figure</th><th scope="col">How far to trust it</th><th scope="col">Based on</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
         </div>
       </section>
 
@@ -184,6 +193,34 @@
           </div>
         </div>
       </section>
+      <section aria-labelledby="returns-h" id="returns-section" hidden>
+        <h2 id="returns-h">Returns on mutual funds (XIRR)</h2>
+        <p class="subtle">
+          The yearly rate at which the money you put in, the money you took out and the statement value balance. It counts
+          only the history on your CAMS or KFintech statement, and only funds whose transactions cover the whole holding and
+          add up to the units held. A fund that cannot be worked out is listed with the reason, never estimated.
+          It is money-weighted, so it is not comparable with a fund's published return, and it is not tax advice.
+        </p>
+        <div id="returns-portfolio" class="card" hidden></div>
+        <p id="returns-status" class="subtle" role="status"></p>
+        <div class="table-wrap">
+          <table id="returns" class="cards">
+            <thead>
+              <tr>
+                <th scope="col">Fund</th>
+                <th scope="col" class="num">Return a year</th>
+                <th scope="col">Since</th>
+                <th scope="col" class="num">Put in</th>
+                <th scope="col" class="num">Taken out</th>
+                <th scope="col" class="num">Value</th>
+                <th scope="col" class="num">Gain</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
       <section aria-labelledby="changes-h" id="changes-section" hidden>
         <h2 id="changes-h">What changed between statements</h2>
         <p class="subtle">
@@ -380,6 +417,8 @@
   <script src="/static/nav.js"></script>
   <script src="/static/holdings.js"></script>
   <script src="/static/imports.js"></script>
+  <script src="/static/confidence.js"></script>
+  <script src="/static/returns.js"></script>
   <script src="/static/settings.js"></script>
   <script src="/static/app.js"></script>
 </body>

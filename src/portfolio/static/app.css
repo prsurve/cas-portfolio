@@ -308,6 +308,21 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.5); }
 dialog h2 { margin-top: 0; }
 dialog label { display: grid; gap: var(--space-1); font-size: 0.875rem; color: var(--muted); }
 dialog input[type="text"] { font: inherit; padding: var(--space-2); border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); }
+
+/* Returns table: a skipped fund's reason is a sentence, so the first column wraps instead of stretching the table. */
+#returns td:first-child { white-space: normal; min-width: 200px; max-width: 380px; }
+#returns th { white-space: normal; }
+
+/* Data quality: figure status and the issue lines */
+.status { font-weight: 600; }
+.status.ok { color: var(--gain); }
+.status.partial { color: var(--warn); }
+.status.unavailable { color: var(--muted); }
+.caveats { margin: var(--space-1) 0 0; padding-left: 18px; font-size: 0.8rem; color: var(--muted); font-weight: 400; }
+#figures td:first-child { white-space: normal; min-width: 170px; max-width: 320px; }
+#figures td:last-child { white-space: normal; min-width: 220px; }
+#complete-section h3 { font-size: 0.95rem; margin: var(--space-4) 0 var(--space-2); }
+.checks .detail strong { color: var(--text); font-weight: 600; }
 #view-error:empty { display: none; }
 #view-error { margin: var(--space-2) 0 0; font-size: 0.875rem; }
 /* Headings and the main area receive focus only so a screen reader starts reading there after navigation.

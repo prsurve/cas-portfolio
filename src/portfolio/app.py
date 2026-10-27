@@ -20,11 +20,14 @@ from portfolio.config import Settings, get_settings
 from portfolio.importers.cas import PARSER_VERSION, CasImportError, parse_pdf_bytes, save, sha256, summary
 from portfolio.backup import BackupError, create_backup, newest_age_days, safety_backup
 from portfolio.changes import compare
+from portfolio.confidence import data_confidence
+from portfolio.confidence import data_confidence
 from portfolio.health import backup_list, system_health
 from portfolio.history import value_history
+from portfolio.returns import compute_returns
 from portfolio.import_log import audit_events, statement_detail, statement_summary
 from portfolio.holdings import holding_detail
-from portfolio.portfolio_view import build_view
+from portfolio.portfolio_view import _jsonable, build_view, compute_view
 from portfolio.prices import PriceFetchError
 from portfolio.refresh import refresh_all
 from portfolio.store import Store, as_utc, sqlite_file
@@ -196,6 +199,19 @@ def create_app(settings: Settings | None = None, store: Store | None = None,
     @app.get("/api/portfolio")
     def portfolio() -> dict[str, Any]:
         return build_view(store, settings.stale_after_days, concentration_alert_pct=settings.concentration_alert_pct)
+
+    @app.get("/api/confidence")
+    def confidence() -> dict[str, Any]:
+        """What is wrong or missing, which figures it affects and what to do; how far each figure can be trusted;
+        and how new each data source is. It describes: nothing here changes a figure or a holding."""
+        return data_confidence(store, compute_view(store, settings.stale_after_days))
+
+    @app.get("/api/returns")
+    def returns() -> dict[str, Any]:
+        """XIRR per fund and for the funds that can be worked out together, each with its reason when it cannot.
+        Computed on request (it takes a moment for a long history), from statement values."""
+        view = compute_view(store, settings.stale_after_days)
+        return _jsonable(compute_returns(store, view))
 
     @app.get("/api/holdings/{key:path}")
     def holding(key: str) -> dict[str, Any]:
