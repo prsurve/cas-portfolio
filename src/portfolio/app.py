@@ -18,8 +18,9 @@ from fastapi.staticfiles import StaticFiles
 
 from portfolio.config import Settings, get_settings
 from portfolio.importers.cas import PARSER_VERSION, CasImportError, parse_pdf_bytes, save, sha256, summary
-from portfolio.backup import BackupError, newest_age_days, safety_backup
+from portfolio.backup import BackupError, create_backup, newest_age_days, safety_backup
 from portfolio.changes import compare
+from portfolio.health import backup_list, system_health
 from portfolio.history import value_history
 from portfolio.import_log import audit_events, statement_detail, statement_summary
 from portfolio.holdings import holding_detail
@@ -142,6 +143,29 @@ def create_app(settings: Settings | None = None, store: Store | None = None,
             raise HTTPException(404, "Statement not found")
         store.audit("statement_deleted", f"#{statement_id}")
         return {"status": "deleted"}
+
+    @app.get("/api/health")
+    def health() -> dict[str, Any]:
+        """Database check, disk space, backups, last price refresh and row counts. No portfolio data."""
+        return system_health(store, settings)
+
+    @app.get("/api/backups")
+    def backups() -> dict[str, Any]:
+        return backup_list(settings)
+
+    @app.post("/api/backups")
+    def make_backup() -> JSONResponse:
+        """A verified backup now, encrypted if a gpg recipient is set, pruned to the retention count."""
+        db_file = sqlite_file(store.engine)
+        if db_file is None:
+            raise HTTPException(400, "Backups are for the local SQLite database only.")
+        try:
+            made = create_backup(db_file, Path(settings.backup_dir), recipient=settings.backup_gpg_recipient,
+                                 keep=settings.backup_keep)
+        except BackupError:  # the message can name paths or gpg output, so it stays out of the response
+            raise HTTPException(503, "The backup could not be made. Check the backup folder and the gpg key.")
+        store.audit("backup_created", made.name)
+        return JSONResponse({"name": made.name}, status_code=201)
 
     @app.get("/api/export")
     def export_data() -> JSONResponse:
