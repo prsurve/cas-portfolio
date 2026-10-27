@@ -103,3 +103,42 @@ def test_fund_source_is_one_statement_never_both(store, mf_data, demat_data):
     cas.save(store, cas.from_demat_data(demat_data), "demat-oct")
     v = build_view(store, today=date(2026, 11, 5))
     assert v["statements"]["mf"]["issuer"] == "CDSL" and v["totals"]["mf_value"] == 5000  # newer wins, not summed
+
+
+# ---- as-of range of the total -------------------------------------------------------
+
+
+def _with_end(data, end):
+    data.statement_period = data.statement_period.model_copy(update={"to": end})
+    return data
+
+
+def test_as_of_is_none_without_statements(store):
+    assert build_view(store, today=TODAY)["as_of"] is None
+
+
+def test_as_of_single_date_when_statements_agree(store, mf_data, demat_data):
+    cas.save(store, cas.from_mf_data(mf_data), "mf1")
+    cas.save(store, cas.from_demat_data(demat_data), "demat1")
+    assert build_view(store, today=TODAY)["as_of"] == {
+        "from": "2026-09-30", "to": "2026-09-30", "spread_days": 0, "mixed": False}
+
+
+def test_as_of_one_statement_alone(store, demat_data):
+    cas.save(store, cas.from_demat_data(demat_data), "demat1")  # its folio section supplies the funds too
+    a = build_view(store, today=TODAY)["as_of"]
+    assert a["from"] == a["to"] == "2026-09-30" and a["mixed"] is False
+
+
+def test_small_gap_is_not_flagged(store, mf_data, demat_data):
+    cas.save(store, cas.from_demat_data(demat_data), "demat1")
+    cas.save(store, cas.from_mf_data(_with_end(mf_data, "05-Oct-2026")), "mf1")
+    a = build_view(store, today=TODAY)["as_of"]
+    assert (a["from"], a["to"], a["spread_days"], a["mixed"]) == ("2026-09-30", "2026-10-05", 5, False)
+
+
+def test_wide_gap_is_flagged(store, mf_data, demat_data):
+    cas.save(store, cas.from_demat_data(demat_data), "demat1")  # stocks to 30 Sep
+    cas.save(store, cas.from_mf_data(_with_end(mf_data, "25-Oct-2026")), "mf1")  # funds to 25 Oct
+    a = build_view(store, today=TODAY)["as_of"]
+    assert (a["from"], a["to"], a["spread_days"], a["mixed"]) == ("2026-09-30", "2026-10-25", 25, True)
