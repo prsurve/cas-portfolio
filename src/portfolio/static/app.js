@@ -1,11 +1,5 @@
 "use strict";
 
-const inr = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
-const inr2 = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 });
-const qtyFmt = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 3 });
-const pctFmt = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2, signDisplay: "always" });
-const dateFmt = new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" });
-
 // Build DOM nodes without innerHTML so statement text can never inject markup.
 function el(tag, attrs = {}, ...children) {
   const node = document.createElement(tag);
@@ -22,11 +16,13 @@ function el(tag, attrs = {}, ...children) {
   return node;
 }
 
+const Fmt = window.PortfolioTools.fmt;
 const signClass = (n) => (n > 0 ? "gain" : n < 0 ? "loss" : "");
-const money = (n) => (n === null || n === undefined ? "–" : inr.format(n));
-const price = (n) => (n === null || n === undefined ? "–" : inr2.format(n));
-const pct = (n) => (n === null || n === undefined ? "" : `${pctFmt.format(n)}%`);
-const day = (iso) => (iso ? dateFmt.format(new Date(`${iso.slice(0, 10)}T00:00:00`)) : "–");
+const money = Fmt.money;
+const price = Fmt.price;
+const pct = Fmt.percent;
+const day = Fmt.day;
+const qtyFmt = { format: Fmt.quantity };
 const ISSUERS = { CAMS: "CAMS", KFINTECH: "KFintech", NSDL: "NSDL", CDSL: "CDSL" };
 const ASSET_TYPES = { equity: "Stock", fund: "ETF/Fund", bond: "Bond" };
 

@@ -57,7 +57,27 @@
     };
   }
 
-  const api = { matchesQuery, sortRows, csvCell, toCsv, debounce };
+  // One display rule for numbers and dates. Missing is a dash, never 0, so an unknown value cannot pass for a real one.
+  const MISSING = "–";
+  const inr0 = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
+  const inr2 = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 });
+  const qty = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 3 });
+  const pct1 = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2, signDisplay: "exceptZero" });
+  const date = new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" });
+  const missing = (n) => n === null || n === undefined || (typeof n === "number" && !Number.isFinite(n));
+
+  const fmt = {
+    MISSING,
+    money: (n) => (missing(n) ? MISSING : inr0.format(n)),
+    price: (n) => (missing(n) ? MISSING : inr2.format(n)),
+    quantity: (n) => (missing(n) ? MISSING : qty.format(n)),
+    // A signed percentage such as +4.2%. Missing gives a dash like every other figure.
+    percent: (n) => (missing(n) ? MISSING : `${pct1.format(n)}%`),
+    // ISO date (or datetime) to "27 Oct 2026". Parsed as a local date so the day never shifts with the time zone.
+    day: (iso) => (iso ? date.format(new Date(`${String(iso).slice(0, 10)}T00:00:00`)) : MISSING),
+  };
+
+  const api = { matchesQuery, sortRows, csvCell, toCsv, debounce, fmt };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.PortfolioTools = api;
 })(typeof self !== "undefined" ? self : this);

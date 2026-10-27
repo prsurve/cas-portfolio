@@ -84,3 +84,50 @@ def test_screen_reader_text_does_not_wrap():
 def test_search_boxes_are_debounced():
     js = (STATIC / "app.js").read_text()
     assert js.count("Tools.debounce(") == 2
+
+
+def _theme_colours():
+    """Colour tokens for light and dark, read from app.css."""
+    css = (STATIC / "app.css").read_text()
+    split = css.index("prefers-color-scheme: dark")
+    end = css.index("* { box-sizing")
+    token = re.compile(r"--([\w-]+):\s*(#[0-9a-fA-F]{6})")
+    light = dict(token.findall(css[:split]))
+    return light, {**light, **dict(token.findall(css[split:end]))}
+
+
+def _luminance(hex_colour):
+    channels = [int(hex_colour[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+    r, g, b = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in channels]
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def contrast(a, b):
+    hi, lo = sorted((_luminance(a), _luminance(b)), reverse=True)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+def test_text_colours_meet_wcag_aa_in_both_themes():
+    """4.5:1 for normal text. Found in review: white-on-accent was 2.5:1 in dark mode."""
+    for name, t in zip(("light", "dark"), _theme_colours()):
+        for fg in ("text", "muted", "gain", "loss", "accent"):
+            for bg in ("bg", "surface"):
+                assert contrast(t[fg], t[bg]) >= 4.5, f"{name}: --{fg} on --{bg}"
+        assert contrast(t["warn"], t["warn-bg"]) >= 4.5, f"{name}: --warn on --warn-bg"
+        assert contrast(t["on-accent"], t["accent"]) >= 4.5, f"{name}: --on-accent on --accent"
+
+
+def test_allocation_labels_are_readable_on_every_segment_colour():
+    css = (STATIC / "app.css").read_text()
+    assert re.search(r"\.stack \.seg\s*\{[^}]*color:\s*#000", css), "segment labels must be black on the series colours"
+    assert re.search(r"\.stack \.s0\s*\{\s*color:\s*var\(--bg\)", css)
+    for name, t in zip(("light", "dark"), _theme_colours()):
+        for n in range(1, 5):
+            assert contrast("#000000", t[f"series-{n}"]) >= 4.5, f"{name}: label on --series-{n}"
+        assert contrast(t["bg"], t["muted"]) >= 4.5, f"{name}: label on the 'other' segment"
+
+
+def test_there_is_a_tablet_breakpoint_and_big_touch_targets():
+    css = (STATIC / "app.css").read_text()
+    assert "@media (min-width: 641px) and (max-width: 900px)" in css
+    assert re.search(r"min-height:\s*44px", css)
