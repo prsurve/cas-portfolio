@@ -1,6 +1,6 @@
 """Latest mutual fund NAVs from AMFI's public end-of-day file.
 
-    PYTHONPATH=src .venv/bin/python -m portfolio.prices      # refresh from the command line
+    PYTHONPATH=src .venv/bin/python -m portfolio.prices      # refresh every source from the command line
 
 This is the app's only outbound request: one GET of a fixed public URL. It
 sends nothing about your holdings (no parameters, cookies or ISIN list). The
@@ -131,6 +131,7 @@ def refresh_nav(store: Any, fetch: Callable[[], str] = fetch_navall) -> dict[str
 
 def main() -> int:
     from portfolio.config import get_settings
+    from portfolio.refresh import refresh_all
     from portfolio.store import Store
 
     settings = get_settings()
@@ -138,12 +139,16 @@ def main() -> int:
         print("Price fetching is turned off (PORTFOLIO_FETCH_PRICES=false).", file=sys.stderr)
         return 1
     try:
-        report = refresh_nav(Store.from_url(settings.database_url))
+        result = refresh_all(Store.from_url(settings.database_url))
     except PriceFetchError as exc:
         print(exc, file=sys.stderr)
         return 1
-    print(f"AMFI NAVs: {report['priced']} of {report['held']} held funds priced"
-          + (f", latest NAV date {report['latest_date']}." if report["latest_date"] else "."))
+    for label, key in (("Fund NAVs (AMFI)", "nav"), ("Stocks, ETFs, bonds (NSE/BSE)", "exchange")):
+        r = result[key]
+        if r:
+            print(f"{label}: {r['priced']} of {r['held']} priced" + (f", newest {r['latest_date']}." if r["latest_date"] else "."))
+    for key, message in result["errors"].items():
+        print(f"Warning: {message}", file=sys.stderr)
     return 0
 
 

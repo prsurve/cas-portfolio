@@ -268,9 +268,17 @@ class Store:
             return [r[0] for r in rows]
 
     def held_fund_isins(self) -> set[str]:
-        """Every mutual fund ISIN in any stored statement."""
+        """Every mutual fund ISIN in any stored statement: folios, and funds held in demat."""
         with self.engine.connect() as conn:
-            return {r[0] for r in conn.execute(select(mf_holdings.c.isin).distinct()) if r[0]}
+            folios = {r[0] for r in conn.execute(select(mf_holdings.c.isin).distinct()) if r[0]}
+            demat = {r[0] for r in conn.execute(
+                select(stock_holdings.c.isin).where(stock_holdings.c.asset_type == "fund").distinct())}
+            return folios | demat
+
+    def held_exchange_isins(self) -> set[str]:
+        """Every ISIN held in demat (stocks, ETFs, bonds, funds) in any stored statement."""
+        with self.engine.connect() as conn:
+            return {r[0] for r in conn.execute(select(stock_holdings.c.isin).distinct()) if r[0]}
 
     def save_prices(self, source: str, found: dict[str, tuple[Any, date]]) -> None:
         """Replace the stored price for each ISIN: {isin: (price, price_date)}."""

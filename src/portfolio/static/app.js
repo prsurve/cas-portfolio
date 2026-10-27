@@ -153,10 +153,10 @@ function renderTotals(p) {
       tiles.push(tile("Mutual fund gain", money(t.mf_gain), pct(t.mf_gain_pct), signClass(t.mf_gain)));
     }
   }
-  if (t.mf_latest) {
-    const m = t.mf_latest;
-    tiles.push(tile("Funds at latest NAV", money(m.value), `${m.priced} of ${m.total} funds, NAV ${day(m.as_of)}`));
-    tiles.push(tile("Change since statement", money(m.change), pct(m.change_pct), signClass(m.change)));
+  for (const [label, m] of [["Demat", t.demat_latest], ["Funds", t.mf_latest]]) {
+    if (!m) continue;
+    tiles.push(tile(`${label} at latest price`, money(m.value), `${m.priced} of ${m.total}, as of ${day(m.as_of)}`));
+    tiles.push(tile(`${label}: change since statement`, money(m.change), pct(m.change_pct), signClass(m.change)));
   }
   document.getElementById("totals").replaceChildren(...tiles);
 }
@@ -222,6 +222,13 @@ function completenessChecks(c) {
     checks.push([false, `${plural(c.stocks.without_symbol, "stock")} of ${c.stocks.count} ${c.stocks.without_symbol === 1 ? "has" : "have"} no NSE symbol.`,
       "They are shown by name. Prices from public data (a later feature) need a match by ISIN."]);
   }
+  if (c.holdings) {
+    const h = c.holdings;
+    checks.push([h.without_price === 0, h.without_price === 0 ? `Every demat holding has a latest price.`
+      : h.priced === 0 ? "No latest prices yet."
+      : `${h.without_price} of ${h.count} demat holdings have no price newer than the statement.`,
+      h.without_price === 0 ? null : "Use Refresh prices. Unlisted or delisted securities have none; they show a dash and are never estimated."]);
+  }
   if (c.funds) {
     const f = c.funds;
     checks.push([f.without_cost === 0, f.without_cost === 0 ? `All ${plural(f.count, "fund")} have a purchase cost.`
@@ -229,7 +236,7 @@ function completenessChecks(c) {
     checks.push([f.without_price === 0, f.without_price === 0 ? `Every fund has a latest NAV.`
       : f.priced === 0 ? "No latest NAVs yet."
       : `${f.without_price} of ${plural(f.count, "fund")} ${f.without_price === 1 ? "has" : "have"} no NAV newer than the statement.`,
-      f.without_price === 0 ? null : "Use Refresh NAVs. A fund AMFI does not list stays at its statement value and shows a dash."]);
+      f.without_price === 0 ? null : "Use Refresh prices. A fund AMFI does not list stays at its statement value and shows a dash."]);
     if (f.unknown_amc) checks.push([false, `${plural(f.unknown_amc, "fund")} ${f.unknown_amc === 1 ? "has" : "have"} no fund house name.`]);
     const h = f.history;
     if (h.unknown) {
@@ -338,14 +345,14 @@ function renderAllocation(p) {
             el("td", { class: "num" }, `${r.weight.toFixed(1)}%`))))))));
 }
 
-// A fund's value at its latest public NAV. No NAV found: a dash, never an estimate.
+// A holding's value at its latest public price. No price found: a dash, never an estimate.
 function latestCell(l) {
   if (!l) return el("td", { class: "num" }, "–");
+  const label = l.source === "AMFI" ? `NAV ${price(l.price)}` : `${price(l.price)} · ${l.source}`;
   return el("td", { class: "num" },
     money(l.value),
     el("div", { class: signClass(l.change) }, `${money(l.change)} ${pct(l.change_pct)}`),
-    el("div", { class: l.stale ? "subtle loss" : "subtle" },
-      `NAV ${price(l.nav)} · ${day(l.nav_date)}${l.stale ? " (old)" : ""}`));
+    el("div", { class: l.stale ? "subtle loss" : "subtle" }, `${label} · ${day(l.price_date)}${l.stale ? " (old)" : ""}`));
 }
 
 async function refreshPrices() {
@@ -355,8 +362,12 @@ async function refreshPrices() {
   status.textContent = "Downloading…";
   try {
     const r = await api("/api/prices/refresh", { method: "POST" });
-    status.textContent = r.held === 0 ? "No funds to price."
-      : `Updated ${r.priced} of ${r.held} funds` + (r.latest_date ? ` (newest NAV ${day(r.latest_date)}).` : ".");
+    const parts = [];
+    if (r.nav && r.nav.held) parts.push(`funds ${r.nav.priced} of ${r.nav.held}`);
+    if (r.exchange && r.exchange.held) parts.push(`stocks, ETFs and bonds ${r.exchange.priced} of ${r.exchange.held}`);
+    const problems = [...Object.values(r.errors), ...((r.exchange && r.exchange.warnings) || [])];
+    status.className = problems.length ? "subtle loss" : "subtle";
+    status.textContent = (parts.length ? `Priced: ${parts.join("; ")}. ` : "Nothing to price. ") + problems.join(" ");
     await load();
   } catch (err) {
     status.className = "subtle loss";
@@ -408,6 +419,7 @@ function renderStocks(p) {
     el("td", { class: "num" }, qtyFmt.format(h.quantity)),
     el("td", { class: "num" }, price(h.price)),
     el("td", { class: "num" }, money(h.value)),
+    latestCell(h.latest),
     el("td", { class: "num" }, total ? `${((h.value / total) * 100).toFixed(1)}%` : "–"),
     el("td", null, h.brokers.map((b) => el("span", { class: "chip" }, b))),
   ], h.accounts.map((a) => el("tr", null,
@@ -415,9 +427,9 @@ function renderStocks(p) {
     el("td", { class: "num" }, qtyFmt.format(a.quantity)),
     el("td"),
     el("td", { class: "num" }, money(a.value)),
-    el("td"), el("td")))));
+    el("td"), el("td"), el("td")))));
   if (rows.length === 0 && p.stocks.length) {
-    rows.push(el("tr", null, el("td", { colspan: "6", class: "empty" }, "No stock is held in more than one account.")));
+    rows.push(el("tr", null, el("td", { colspan: "7", class: "empty" }, "No stock is held in more than one account.")));
   }
   document.querySelector("#stocks tbody").replaceChildren(...rows);
 }

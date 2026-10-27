@@ -39,6 +39,15 @@
     <div id="totals" class="tiles"></div>
   </section>
 
+  <section aria-label="Latest prices" id="prices-bar">
+    <div class="controls">
+      <button type="button" class="btn" id="refresh-prices">Refresh prices</button>
+      <span class="subtle" id="refresh-status" role="status" aria-live="polite">
+        Downloads public end-of-day files (AMFI fund NAVs, NSE and BSE closing prices). Nothing about your holdings is sent.
+      </span>
+    </div>
+  </section>
+
   <section aria-labelledby="complete-h" id="complete-section" hidden>
     <h2 id="complete-h">Data completeness</h2>
     <div class="card"><ul id="completeness" class="checks"></ul></div>
@@ -108,12 +117,6 @@
 
   <section aria-labelledby="funds-h" id="funds-section" hidden>
     <h2 id="funds-h">Mutual fund folios <span class="subtle" id="funds-asof"></span></h2>
-    <div class="controls">
-      <button type="button" class="btn" id="refresh-prices">Refresh NAVs</button>
-      <span class="subtle" id="refresh-status" role="status" aria-live="polite">
-        Downloads AMFI's public NAV file. Nothing about your holdings is sent.
-      </span>
-    </div>
     <div class="table-wrap">
       <table id="funds">
         <thead>
@@ -143,6 +146,7 @@
             <th scope="col" class="num">Quantity</th>
             <th scope="col" class="num">Price</th>
             <th scope="col" class="num">Value</th>
+            <th scope="col" class="num">At latest price</th>
             <th scope="col" class="num">Weight</th>
             <th scope="col">Brokers</th>
           </tr>

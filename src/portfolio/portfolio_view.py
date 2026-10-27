@@ -86,34 +86,64 @@ def _stocks(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], Decimal]:
     return out, sum((h["value"] for h in out), ZERO)
 
 
-def _attach_latest(store: Store, funds: list[dict[str, Any]], today: date) -> dict[str, Any] | None:
-    """Value each fund at its latest public NAV, next to the statement value.
+def _latest(units: Decimal, statement_value: Decimal, price: Decimal, price_date: date, source: str,
+            today: date) -> dict[str, Any]:
+    value = units * price
+    age = (today - price_date).days
+    return {"price": price, "price_date": price_date, "source": source, "value": value,
+            "change": value - statement_value, "change_pct": _pct(value - statement_value, statement_value),
+            "days_old": age, "stale": age > PRICE_STALE_AFTER_DAYS}
 
-    A NAV counts only if it is at least as new as the statement's own valuation.
-    A fund with no usable NAV gets `latest: None`; nothing is estimated. Returns
-    totals over the priced funds only, with how many that is.
-    """
-    found = store.prices_for([f["isin"] for f in funds if f["isin"]], "AMFI")
-    priced = []
-    for f in funds:
-        p = found.get(f["isin"]) if f["isin"] else None
-        if p is None or (f["nav_date"] is not None and p["price_date"] < f["nav_date"]):
-            f["latest"] = None
-            continue
-        value = Decimal(f["units"]) * Decimal(p["price"])
-        age = (today - p["price_date"]).days
-        f["latest"] = {
-            "nav": Decimal(p["price"]), "nav_date": p["price_date"], "source": "AMFI", "value": value,
-            "change": value - f["value"], "change_pct": _pct(value - f["value"], f["value"]),
-            "days_old": age, "stale": age > PRICE_STALE_AFTER_DAYS,
-        }
-        priced.append(f)
+
+def _latest_totals(items: list[dict[str, Any]], total: int) -> dict[str, Any] | None:
+    priced = [i for i in items if i["latest"]]
     if not priced:
         return None
-    value = sum((f["latest"]["value"] for f in priced), ZERO)
-    was = sum((f["value"] for f in priced), ZERO)
+    value = sum((i["latest"]["value"] for i in priced), ZERO)
+    was = sum((i["value"] for i in priced), ZERO)
     return {"value": value, "statement_value": was, "change": value - was, "change_pct": _pct(value - was, was),
-            "priced": len(priced), "total": len(funds), "as_of": min(f["latest"]["nav_date"] for f in priced)}
+            "priced": len(priced), "total": total, "as_of": min(i["latest"]["price_date"] for i in priced)}
+
+
+def _attach_latest(store: Store, funds: list[dict[str, Any]], today: date) -> dict[str, Any] | None:
+    """Value each fund folio at its latest AMFI NAV, next to the statement value.
+
+    A NAV counts only if it is at least as new as the statement's own valuation.
+    A fund with no usable NAV gets `latest: None`; nothing is estimated. Totals
+    cover the priced funds only, with how many that is.
+    """
+    found = store.prices_for([f["isin"] for f in funds if f["isin"]], "AMFI")
+    for f in funds:
+        p = found.get(f["isin"]) if f["isin"] else None
+        usable = p is not None and (f["nav_date"] is None or p["price_date"] >= f["nav_date"])
+        f["latest"] = _latest(Decimal(f["units"]), f["value"], Decimal(p["price"]), p["price_date"], "AMFI", today) \
+            if usable else None
+    return _latest_totals(funds, len(funds))
+
+
+# Exchanges are tried newest first; on a tie NSE wins.
+EXCHANGE_PRIORITY = {"NSE": 1, "BSE": 0}
+
+
+def _attach_latest_stocks(store: Store, stocks: list[dict[str, Any]], statement_date: date,
+                          today: date) -> dict[str, Any] | None:
+    """Value each demat holding at its latest exchange close. ETFs and stocks trade at a market
+    price. A fund unit that is not on an exchange falls back to its AMFI NAV, but a share never does.
+    A price older than the statement is not used, and a holding with no price shows none."""
+    isins = [h["isin"] for h in stocks]
+    by_source = {src: store.prices_for(isins, src) for src in EXCHANGE_PRIORITY}
+    amfi = store.prices_for([h["isin"] for h in stocks if h["asset_type"] == "fund"], "AMFI")
+    for h in stocks:
+        options = [(p["price_date"], EXCHANGE_PRIORITY[src], src, p) for src, rows in by_source.items()
+                   for p in [rows.get(h["isin"])] if p]
+        best = max(options, key=lambda o: o[:2]) if options else None
+        if best is None and h["asset_type"] == "fund" and h["isin"] in amfi:
+            p = amfi[h["isin"]]
+            best = (p["price_date"], 0, "AMFI", p)
+        usable = best is not None and best[0] >= statement_date
+        h["latest"] = _latest(h["quantity"], h["value"], Decimal(best[3]["price"]), best[0], best[2], today) \
+            if usable else None
+    return _latest_totals(stocks, len(stocks))
 
 
 def _history(members: list[dict[str, Any]]) -> str:
@@ -127,7 +157,7 @@ def _history(members: list[dict[str, Any]]) -> str:
 def _completeness(store: Store, demat: dict[str, Any] | None, stocks: list[dict[str, Any]],
                   funds: list[dict[str, Any]]) -> dict[str, Any]:
     """How much of what the statements printed was read, and what is missing."""
-    out: dict[str, Any] = {"demat": None, "funds": None, "stocks": None}
+    out: dict[str, Any] = {"demat": None, "funds": None, "stocks": None, "holdings": None}
     if demat:
         rows = store.rows_for(statement_accounts, demat["id"])
         if not rows:
@@ -152,6 +182,8 @@ def _completeness(store: Store, demat: dict[str, Any] | None, stocks: list[dict[
             }
         equities = [h for h in stocks if h["asset_type"] == "equity"]
         out["stocks"] = {"count": len(equities), "without_symbol": sum(1 for h in equities if not h["symbol"])}
+        out["holdings"] = {"count": len(stocks), "priced": sum(1 for h in stocks if h["latest"]),
+                           "without_price": sum(1 for h in stocks if not h["latest"])}
     if funds:
         costed = sum(1 for f in funds if f["cost"] is not None)
         out["funds"] = {
@@ -245,10 +277,14 @@ def compute_view(store: Store, stale_after_days: int = 45, today: date | None = 
     stocks, demat_value = _stocks(store.rows_for(stock_holdings, demat["id"]) if demat else [])
     funds, fund_totals = _funds(fund_rows[mf["id"]] if mf else [])
     # Latest prices apply to today's dashboard only, never to a past date.
-    mf_latest = _attach_latest(store, funds, today) if as_of is None else None
-    if as_of is not None:
-        for f in funds:
-            f["latest"] = None
+    mf_latest = demat_latest = None
+    if as_of is None:
+        mf_latest = _attach_latest(store, funds, today)
+        if demat:
+            demat_latest = _attach_latest_stocks(store, stocks, demat["period_to"], today)
+    else:
+        for item in (*funds, *stocks):
+            item["latest"] = None
     total = demat_value + fund_totals["value"]
     by_asset: dict[str, Decimal] = defaultdict(lambda: ZERO)
     for h in stocks:
@@ -282,6 +318,7 @@ def compute_view(store: Store, stale_after_days: int = 45, today: date | None = 
             "multi_broker_stocks": sum(1 for h in stocks if len(h["accounts"]) > 1),
             "funds_count": len(funds),
             "mf_latest": mf_latest,
+            "demat_latest": demat_latest,
         },
         "as_of": _as_of(demat, mf),
         "completeness": _completeness(store, demat, stocks, funds),
