@@ -250,6 +250,15 @@ class Store:
         with self.engine.begin() as conn:
             conn.execute(insert(audit_log).values(ts=utcnow(), event=event, detail=detail))
 
+    def import_status(self, file_sha256: str, parser_version: int) -> str:
+        """What saving this file would do: "new", "duplicate" (no change) or "replaces_older" (re-parse)."""
+        with self.engine.connect() as conn:
+            found = conn.execute(select(statements.c.parser_version).where(
+                statements.c.file_sha256 == file_sha256)).scalar()
+        if found is None:
+            return "new"
+        return "duplicate" if found >= parser_version else "replaces_older"
+
     def save_statement(
         self,
         *,

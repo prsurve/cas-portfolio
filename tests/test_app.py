@@ -215,3 +215,40 @@ def test_delete_all_is_refused_when_the_backup_fails(env, tmp_path, monkeypatch)
     r = client.request("DELETE", "/api/data", headers={"X-Requested-With": "portfolio"}, json={"confirm": "delete all data"})
     assert r.status_code == 503 and "nothing was deleted" in r.json()["detail"]
     assert len(client.get("/api/statements").json()["statements"]) == 1
+
+
+def test_preview_saves_nothing_and_reports_what_saving_would_do(env):
+    client, store, _, _ = env
+    h = {"X-Requested-With": "portfolio"}
+    before = client.get("/api/export").json()
+    before.pop("exported_at")
+
+    r = client.post("/api/statements/preview", content=PDF, headers=HEADERS)
+    assert r.status_code == 200 and r.json()["would"] == "new" and r.json()["kind"] == "mf"
+    after = client.get("/api/export").json()
+    after.pop("exported_at")
+    assert after == before  # no statement, holding or audit row was written
+
+    assert client.post("/api/statements", content=PDF, headers=HEADERS).status_code == 201
+    assert client.post("/api/statements/preview", content=PDF, headers=HEADERS).json()["would"] == "duplicate"
+    assert client.post("/api/statements/preview", content=PDF, headers={"X-Requested-With": "portfolio"}).status_code == 400
+
+
+def test_preview_errors_keep_the_upload_rules_and_write_no_audit_row(env):
+    client, store, _, _ = env
+    bad = {**HEADERS, "X-PDF-Password": "wrong"}
+    r = client.post("/api/statements/preview", content=PDF, headers=bad)
+    assert r.status_code == 422
+    assert client.post("/api/statements/preview", content=b"not a pdf", headers=HEADERS).status_code == 400
+    assert client.post("/api/statements/preview", content=PDF).status_code == 403  # no CSRF header
+    assert all(a["event"] != "statement_rejected" for a in client.get("/api/export").json()["audit_log"])
+    assert "wrong" not in r.text
+
+
+def test_import_status_marks_older_parser_versions(env):
+    client, store, _, _ = env
+    client.post("/api/statements", content=PDF, headers=HEADERS)
+    digest = cas.sha256(PDF)
+    assert store.import_status(digest, 1) == "duplicate"
+    assert store.import_status(digest, 999) == "replaces_older"
+    assert store.import_status("0" * 64, 1) == "new"

@@ -68,9 +68,8 @@ def create_app(settings: Settings | None = None, store: Store | None = None,
     def index() -> FileResponse:
         return FileResponse(STATIC_DIR / "index.html")
 
-    @app.post("/api/statements")
-    async def upload(request: Request) -> JSONResponse:
-        """Body: the raw PDF. Password in the X-PDF-Password header. Nothing but parsed rows is kept."""
+    async def read_upload(request: Request) -> tuple[bytes, str]:
+        """The PDF bytes and password from an upload request, after the size, type and password checks."""
         declared = request.headers.get("content-length")
         if declared and declared.isdigit() and int(declared) > max_bytes:
             raise HTTPException(413, f"File is larger than {settings.max_upload_mb} MB")
@@ -82,6 +81,12 @@ def create_app(settings: Settings | None = None, store: Store | None = None,
         password = request.headers.get(PASSWORD_HEADER, "").strip()
         if not password:
             raise HTTPException(400, "Enter the PDF password")
+        return pdf, password
+
+    @app.post("/api/statements")
+    async def upload(request: Request) -> JSONResponse:
+        """Body: the raw PDF. Password in the X-PDF-Password header. Nothing but parsed rows is kept."""
+        pdf, password = await read_upload(request)
         try:
             parsed = await run_in_threadpool(parse_pdf_bytes, pdf, password)
         except CasImportError as exc:
@@ -90,6 +95,17 @@ def create_app(settings: Settings | None = None, store: Store | None = None,
         statement_id, created = save(store, parsed, sha256(pdf))
         return JSONResponse({"id": statement_id, "created": created, **summary(parsed)},
                             status_code=201 if created else 200)
+
+    @app.post("/api/statements/preview")
+    async def preview(request: Request) -> JSONResponse:
+        """Same request as the upload, but nothing is saved, not even an audit row.
+        Returns what would be read and what saving would do: new, duplicate or replaces_older."""
+        pdf, password = await read_upload(request)
+        try:
+            parsed = await run_in_threadpool(parse_pdf_bytes, pdf, password)
+        except CasImportError as exc:
+            return JSONResponse({"detail": str(exc)}, status_code=422)
+        return JSONResponse({"would": store.import_status(sha256(pdf), PARSER_VERSION), **summary(parsed)})
 
     @app.get("/healthz")
     def healthz() -> JSONResponse:
