@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 
 STATIC = Path(__file__).resolve().parent.parent / "src" / "portfolio" / "static"
-JS = [STATIC / "app.js", STATIC / "tools.js", STATIC / "nav.js", STATIC / "holdings.js", STATIC / "imports.js", STATIC / "settings.js", STATIC / "theme.js"]
+JS = [STATIC / "app.js", STATIC / "tools.js", STATIC / "nav.js", STATIC / "holdings.js", STATIC / "imports.js", STATIC / "settings.js", STATIC / "theme.js", STATIC / "returns.js"]
 
 # Validated with the dataviz skill's scripts/validate_palette.js against this app's card surfaces
 # (adjacent pairs, light #ffffff and dark #1f1f1d). Change a hex and the check must be run again.
@@ -70,7 +70,7 @@ def test_every_table_column_has_a_phone_label():
     js = "".join(p.read_text() for p in JS)
     assert "@media (max-width: 640px)" in (STATIC / "app.css").read_text()
     tables = re.findall(r'<table id="(\w+)" class="cards">(.*?)</table>', html, re.S)
-    assert {t[0] for t in tables} == {"history", "changes", "holdings", "statements", "audit", "backups"}
+    assert {t[0] for t in tables} == {"history", "changes", "holdings", "statements", "audit", "backups", "returns"}
     for table_id, body in tables:
         headings = re.findall(r"<th[^>]*>(.*?)</th>", body, re.S)
         for index, raw in enumerate(headings):
@@ -176,7 +176,7 @@ def test_shell_has_landmarks_skip_link_and_one_page_per_nav_link():
     for page in pages:  # each page has its own h1, which receives focus on navigation
         assert f'<h1 id="{page}-title" tabindex="-1">' in html
     assert html.count("<h1") == len(pages), "one h1 per page"
-    assert html.index("/static/tools.js") < html.index("/static/nav.js") < html.index("/static/holdings.js") < html.index("/static/imports.js") < html.index("/static/settings.js") < html.index("/static/app.js")
+    assert html.index("/static/tools.js") < html.index("/static/nav.js") < html.index("/static/holdings.js") < html.index("/static/imports.js") < html.index("/static/returns.js") < html.index("/static/settings.js") < html.index("/static/app.js")
 
 
 def test_every_table_and_control_lives_inside_a_page():
@@ -257,3 +257,18 @@ def test_delete_all_uses_a_dialog_not_a_prompt_and_stays_disabled_until_the_phra
 def test_danger_button_text_is_readable_in_both_themes():
     for name, t in zip(("light", "dark"), _theme_colours()):
         assert contrast(t["bg"], t["loss"]) >= 4.5, f"{name}: danger button text"
+
+
+def test_returns_section_states_its_limits_and_asks_only_when_shown():
+    html, js = (STATIC / "index.html").read_text(), (STATIC / "returns.js").read_text()
+    section = html[html.index('id="returns-section"'):html.index('id="changes-section"')]
+    for phrase in ("whole holding", "never estimated", "not comparable", "not tax advice"):
+        assert phrase in section, f"the Returns section must say: {phrase}"
+    assert 'document.getElementById("page-performance").hidden' in js, "returns are worked out only while the page shows"
+    assert "lastReturnsKey = key;  // only a success is remembered" in js
+    assert 'r.status === "ok" ? null' in js and "r.reason" in js, "a skipped fund shows its reason"
+
+
+def test_long_text_in_the_returns_table_wraps():
+    """A skipped fund's reason is a sentence. Unwrapped, it pushed every other column off the screen at desktop width."""
+    assert re.search(r"#returns td:first-child\s*\{[^}]*white-space:\s*normal", (STATIC / "app.css").read_text())
