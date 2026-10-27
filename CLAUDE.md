@@ -90,7 +90,7 @@ There is no `--reload`, so restart the server after code changes. (Users of the 
 
 - **Git:** never commit to `main`; use a branch and pull request per change. Commit with the GitHub noreply address, not a personal email.
 - **Tests first for parser changes:** build inputs from casparser models (`model_copy(update=…)`) so a casparser format change breaks tests, not imports. Reproduce each real-statement quirk with made-up numbers.
-- **Schema changes:** add the column to the `Table` **and** to `Store._migrate()`, since `create_all` won't alter existing tables. Test the migration on a copy of the DB, never on `data/portfolio.db` itself.
+- **Schema changes:** add the column to the `Table` **and** to `Store._migrate()`, since `create_all` won't alter existing tables. Test the migration on a copy of the DB, never on `data/portfolio.db` itself. `tests/test_schema.py` upgrades a frozen first-release database and fails if any `Table` column is missing from `_migrate()`, so a forgotten migration breaks the tests, not a user's database.
 - **Security:** keep the app bound to `127.0.0.1` and reach it remotely through Cloudflare Tunnel with Access. Non-GET requests need `X-Requested-With: portfolio` (CSRF). Keep the CSP strict.
 
 ## Known gaps and future improvements
