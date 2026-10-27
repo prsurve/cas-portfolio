@@ -87,6 +87,10 @@ On a phone (a narrow screen) each table row becomes a card with the column name 
 
 Both tables (demat holdings, mutual fund folios) have a **search box** (name, symbol, ISIN, broker or fund house; every word must match), a **type filter** and a **"held in more than one account"** filter for demat holdings, and **sortable columns** (click a heading, click again to reverse). **Export CSV** saves exactly the rows you see, with the filters and sort applied, as a file in your browser. The export contains your holdings, with only the last 4 characters of account and folio numbers, so keep it as private as the statement itself. Nothing is sent to the server for any of this.
 
+## Your data: export and delete
+
+At the bottom of the page, **Export all data** downloads everything the database holds as one JSON file (money as exact decimal strings, folio and account numbers cut to their last 4 characters). **Delete all data** asks you to type `delete all data`, then removes every statement, holding, transaction and price. The audit log stays, with a line recording the deletion. Backup files in `data/backups` are separate and are not touched; delete them yourself if you want them gone.
+
 ## Upload a statement
 
 1. Choose the PDF and enter its password, then click **Upload**. If the password fails as typed, it's retried in capitals.

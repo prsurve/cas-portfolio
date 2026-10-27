@@ -156,3 +156,35 @@ def test_statement_list_flags_outdated_parser(env):
         conn.execute(update(statements).values(parser_version=cas.PARSER_VERSION - 1, warnings="a\nb"))
     [s] = client.get("/api/statements").json()["statements"]
     assert s["outdated"] is True and s["warnings"] == ["a", "b"]
+
+
+def test_export_has_everything_and_only_masked_ids(env):
+    client, store, _, use = env
+    client.post("/api/statements", content=PDF, headers=HEADERS)
+    use("demat")
+    client.post("/api/statements", content=PDF + b"other", headers=HEADERS)
+    r = client.get("/api/export")
+    assert r.status_code == 200 and "attachment" in r.headers["content-disposition"]
+    data = r.json()
+    assert len(data["statements"]) == 2 and data["stock_holdings"] and data["mf_holdings"] and data["mf_transactions"]
+    assert all(isinstance(h["quantity"], str) for h in data["stock_holdings"])  # exact decimals, not floats
+    text = r.text
+    for private in ("ABCDE1234F", "TEST USER", "12345678", "1234567/89", "9999999999", "t@example.com"):
+        assert private not in text
+
+
+def test_delete_all_needs_the_phrase_and_keeps_the_audit_log(env):
+    client, store, _, _ = env
+    client.post("/api/statements", content=PDF, headers=HEADERS)
+    h = {"X-Requested-With": "portfolio"}
+    assert client.delete("/api/data", headers=h).status_code == 400
+    assert client.request("DELETE", "/api/data", headers=h, json={"confirm": "yes"}).status_code == 400
+    assert client.request("DELETE", "/api/data", json={"confirm": "delete all data"}).status_code == 403  # no CSRF header
+    assert len(client.get("/api/statements").json()["statements"]) == 1
+
+    r = client.request("DELETE", "/api/data", headers=h, json={"confirm": "delete all data"})
+    assert r.status_code == 200 and r.json()["removed"]["statements"] == 1
+    data = client.get("/api/export").json()
+    assert all(data[t] == [] for t in ("statements", "stock_holdings", "mf_holdings", "mf_transactions", "statement_accounts", "prices"))
+    assert [a["event"] for a in data["audit_log"]][-1] == "data_deleted"
+    assert client.get("/api/portfolio").status_code == 200

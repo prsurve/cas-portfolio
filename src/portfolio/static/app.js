@@ -711,6 +711,21 @@ async function removeStatement(s) {
   await load();
 }
 
+async function deleteAllData() {
+  const phrase = "delete all data";
+  const typed = prompt(`This removes every imported statement and price from this machine. Export first if you want a copy.\n\nType "${phrase}" to confirm.`);
+  if (typed === null) return;
+  if (typed.trim() !== phrase) { showAlerts(["Nothing was deleted: the phrase did not match."]); return; }
+  try {
+    await api("/api/data", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirm: phrase }) });
+  } catch (err) {
+    showAlerts([`Delete failed: ${err.message}`]);
+    return;
+  }
+  await load();
+}
+
+document.getElementById("delete-data").addEventListener("click", deleteAllData);
 document.getElementById("refresh-prices").addEventListener("click", refreshPrices);
 let resizeTimer = null;
 window.addEventListener("resize", () => {  // segment widths change, so which labels fit does too
