@@ -228,7 +228,7 @@ function completenessChecks(c) {
   }
   if (c.stocks && c.stocks.without_symbol) {
     checks.push([false, `${plural(c.stocks.without_symbol, "stock")} of ${c.stocks.count} ${c.stocks.without_symbol === 1 ? "has" : "have"} no NSE symbol.`,
-      "They are shown by name. Prices from public data (a later feature) need a match by ISIN."]);
+      "They are shown by name. Latest prices are matched by ISIN, so a missing symbol does not affect them."]);
   }
   if (c.holdings) {
     const h = c.holdings;
@@ -288,8 +288,13 @@ function setupChanges(points) {
   fill(to, keep[1] || points[points.length - 1].date);
   if (!from.value) from.value = points[points.length - 2].date;
   if (!to.value) to.value = points[points.length - 1].date;
-  loadChanges();
+  // The comparison depends only on the statements, so skip the request when nothing relevant changed
+  // (a price refresh or an unrelated reload re-renders the page but leaves the statements alone).
+  const key = JSON.stringify([points.map((pt) => [pt.date, pt.value]), from.value, to.value]);
+  if (key !== lastChangesKey) loadChanges();
 }
+
+let lastChangesKey = null;
 
 async function loadChanges() {
   const from = document.getElementById("chg-from").value, to = document.getElementById("chg-to").value;
@@ -302,6 +307,7 @@ async function loadChanges() {
   }
   try {
     renderChanges(await api(`/api/changes?from_date=${from}&to_date=${to}`));
+    lastChangesKey = JSON.stringify([lastHistory.map((pt) => [pt.date, pt.value]), from, to]);  // only a success is remembered
   } catch (err) {
     document.getElementById("changes-summary").textContent = `Could not compare: ${err.message}`;
   }
@@ -707,6 +713,7 @@ async function removeStatement(s) {
     await api(`/api/statements/${s.id}`, { method: "DELETE" });
   } catch (err) {
     showAlerts([`Delete failed: ${err.message}`]);
+    return;
   }
   await load();
 }
@@ -745,9 +752,9 @@ makeSortable("funds", tableState.funds, rerenderFunds);
 setupMobileSort("stocks", tableState.stocks, rerenderStocks);
 setupMobileSort("funds", tableState.funds, rerenderFunds);
 document.getElementById("multi-only").addEventListener("change", rerenderStocks);
-document.getElementById("stocks-q").addEventListener("input", (e) => { tableState.stocks.query = e.target.value; rerenderStocks(); });
+document.getElementById("stocks-q").addEventListener("input", Tools.debounce((e) => { tableState.stocks.query = e.target.value; rerenderStocks(); }, 150));
 document.getElementById("stocks-type").addEventListener("change", (e) => { tableState.stocks.type = e.target.value; rerenderStocks(); });
-document.getElementById("funds-q").addEventListener("input", (e) => { tableState.funds.query = e.target.value; rerenderFunds(); });
+document.getElementById("funds-q").addEventListener("input", Tools.debounce((e) => { tableState.funds.query = e.target.value; rerenderFunds(); }, 150));
 document.getElementById("stocks-csv").addEventListener("click", () => {
   if (!lastPortfolio || !lastPortfolio.statements.demat) return;
   downloadCsv(`demat-holdings-${lastPortfolio.statements.demat.period_to}.csv`, Tools.toCsv(STOCK_CSV, visibleStocks(lastPortfolio)));

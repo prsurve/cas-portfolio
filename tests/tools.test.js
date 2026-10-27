@@ -50,4 +50,20 @@ const out = T.toCsv(cols, [{ name: "Infosys", qty: 20, note: null }, { name: "=e
 assert.equal(out, 'Name,Qty,"Note, x"\r\nInfosys,20,\r\n\'=evil(),-1.5,"a ""b"""\r\n');
 assert.equal(T.toCsv(cols, []), 'Name,Qty,"Note, x"\r\n', "headers even when there are no rows");
 
+// debounce: many calls inside the wait collapse into one call with the last arguments
+{
+  const pending = new Map(); let next = 1;
+  const timers = { set: (f) => { pending.set(next, f); return next++; }, clear: (h) => pending.delete(h) };
+  const fire = () => { const [[h, f]] = [...pending]; pending.delete(h); f(); };
+  const seen = [];
+  const d = T.debounce((v) => seen.push(v), 100, timers);
+  d("a"); d("ab"); d("abc");
+  assert.equal(pending.size, 1, "earlier timers are cancelled");
+  assert.deepEqual(seen, []);
+  fire();
+  assert.deepEqual(seen, ["abc"]);
+  d("x"); fire();
+  assert.deepEqual(seen, ["abc", "x"], "usable again after firing");
+}
+
 console.log("ok");
