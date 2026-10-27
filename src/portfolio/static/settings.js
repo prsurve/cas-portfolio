@@ -118,9 +118,11 @@ function initSettings() {
     radio.addEventListener("change", () => window.Theme.set(radio.value));
   }
   document.getElementById("reset-display").addEventListener("click", () => {
-    try { localStorage.removeItem("portfolio.lastPage"); } catch (e) { /* nothing to remove */ }
+    prefs.clearAll();  // everything this app keeps in the browser, and nothing else on the site
     window.Theme.set("system");
     syncThemeRadios();
+    resetHoldingsView();
+    document.getElementById("display-status").textContent = "Display settings reset.";
   });
   syncThemeRadios();
 }
