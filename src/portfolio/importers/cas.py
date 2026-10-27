@@ -28,7 +28,7 @@ from typing import Any
 
 # Bump when parsing changes what gets imported: re-uploading a file imported
 # by an older version then replaces it instead of being ignored as a duplicate.
-PARSER_VERSION = 5
+PARSER_VERSION = 6
 
 # Matched against the depository participant (DP) name printed on NSDL/CDSL statements.
 BROKER_PATTERNS: list[tuple[str, tuple[str, ...]]] = [
@@ -226,6 +226,8 @@ class ParsedStatement:
     mfs: list[dict[str, Any]] = field(default_factory=list)
     transactions: list[dict[str, Any]] = field(default_factory=list)
     accounts: list[DematAccount] = field(default_factory=list)
+    # (total printed, total read) for the "Mutual Fund Folios" section, when there is one.
+    folio_reconciliation: tuple[Decimal, Decimal] | None = None
     warnings: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
 
@@ -372,6 +374,7 @@ def _add_folio_section(st: ParsedStatement, acct: Any) -> None:
     st.mfs.extend(rows)
     read = sum((r["value"] or Decimal(0) for r in rows), Decimal(0))
     total = acct.balance or Decimal(0)
+    st.folio_reconciliation = (total, read)
     if abs(total - read) > TOLERANCE:
         st.warnings.append(
             f"Mutual fund folios: statement total {inr(total)}, rows read add up to {inr(read)}. "
@@ -434,6 +437,21 @@ def parse_pdf_bytes(pdf: bytes, password: str) -> ParsedStatement:
     if st.period_to is None:
         raise CasImportError("Could not read the statement period from this PDF.", code="no_period")
     return st
+
+
+def reconciliation_rows(st: ParsedStatement) -> list[dict[str, Any]]:
+    """What the statement printed against what was read, for storing with the statement."""
+    rows = [
+        {"section": "demat", "name": a.dp_name, "depository": a.depository,
+         "client_id_masked": a.client_id_masked, "statement_total": a.statement_total,
+         "imported_value": a.imported_value}
+        for a in st.accounts
+    ]
+    if st.folio_reconciliation is not None:
+        total, read = st.folio_reconciliation
+        rows.append({"section": "folios", "name": "Mutual fund folios", "depository": None,
+                     "client_id_masked": None, "statement_total": total, "imported_value": read})
+    return rows
 
 
 def sha256(pdf: bytes) -> str:
@@ -626,6 +644,7 @@ def save(store: Any, st: ParsedStatement, file_hash: str) -> tuple[int, bool]:
         file_sha256=file_hash, issuer=st.issuer, kind=st.kind, cas_type=st.cas_type,
         period_from=st.period_from, period_to=st.period_to, warnings=st.warnings,
         parser_version=PARSER_VERSION, stocks=st.stocks, mfs=st.mfs, transactions=st.transactions,
+        accounts=reconciliation_rows(st),
     )
     store.audit("statement_imported" if created else "statement_duplicate",
                 f"#{statement_id} {st.issuer} to {st.period_to}")
