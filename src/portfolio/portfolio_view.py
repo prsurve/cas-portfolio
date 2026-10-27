@@ -20,6 +20,9 @@ from typing import Any
 from portfolio.store import Store, as_utc, mf_holdings, stock_holdings
 
 ZERO = Decimal(0)
+# The total adds stocks and funds from possibly different statements. Beyond this
+# many days apart, the dashboard warns that the total mixes dates.
+MIXED_DATES_AFTER_DAYS = 7
 BROKER_LABELS = {
     "zerodha": "Zerodha", "upstox": "Upstox", "hdfc": "HDFC Securities", "sharekhan": "Sharekhan",
     "groww": "Groww", "angelone": "Angel One", "axis": "Axis Securities",
@@ -46,6 +49,15 @@ def _statement_info(st: dict[str, Any] | None, today: date, stale_after_days: in
         "imported_at": as_utc(st["imported_at"]).isoformat(),
         "warnings": st["warnings"].split("\n") if st["warnings"] else [],
     }
+
+
+def _as_of(*statements: dict[str, Any] | None) -> dict[str, Any] | None:
+    """The date range the total covers: the statements it was built from."""
+    dates = [s["period_to"] for s in statements if s]
+    if not dates:
+        return None
+    spread = (max(dates) - min(dates)).days
+    return {"from": min(dates), "to": max(dates), "spread_days": spread, "mixed": spread > MIXED_DATES_AFTER_DAYS}
 
 
 def _stocks(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], Decimal]:
@@ -177,6 +189,7 @@ def build_view(store: Store, stale_after_days: int = 45, today: date | None = No
             "multi_broker_stocks": sum(1 for h in stocks if len(h["accounts"]) > 1),
             "funds_count": len(funds),
         },
+        "as_of": _as_of(demat, mf),
         "statements": {
             "demat": _statement_info(demat, today, stale_after_days),
             "mf": _statement_info(mf, today, stale_after_days),

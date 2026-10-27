@@ -131,7 +131,9 @@ function renderTotals(p) {
       el("div", { class: "label" }, label),
       el("div", { class: `value ${cls || ""}` }, value),
       sub ? el("div", { class: `sub ${cls || ""}` }, sub) : null);
-  const tiles = [tile("Total value", money(t.value))];
+  const a = p.as_of;
+  const range = !a ? null : a.from === a.to ? `as of ${day(a.to)}` : `${day(a.from)} to ${day(a.to)}`;
+  const tiles = [tile("Total value", money(t.value), range)];
   if (p.statements.demat) {
     tiles.push(tile("Demat holdings", money(t.demat_value), `as of ${day(p.statements.demat.period_to)}`));
   }
@@ -250,6 +252,10 @@ function collectAlerts(p) {
     if (s && s.stale) alerts.push(`${label} statement is ${s.age_days} days old. Upload a newer one.`);
     if (s) for (const w of s.warnings.slice(0, 5)) alerts.push(`${label} statement: ${w}`);
     if (s && s.warnings.length > 5) alerts.push(`${label} statement: ${s.warnings.length - 5} more warning(s).`);
+  }
+  if (p.as_of && p.as_of.mixed) {
+    alerts.push(`The total adds statements ${p.as_of.spread_days} days apart (${day(p.as_of.from)} and ` +
+      `${day(p.as_of.to)}), so it is not a value on one day. Upload a newer statement for the older part.`);
   }
   if (p.totals.mf_without_cost) alerts.push(`${p.totals.mf_without_cost} fund(s) have no purchase cost on the statement.`);
   return alerts;
