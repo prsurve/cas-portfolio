@@ -18,9 +18,12 @@ from fastapi.staticfiles import StaticFiles
 
 from portfolio.config import Settings, get_settings
 from portfolio.importers.cas import PARSER_VERSION, CasImportError, parse_pdf_bytes, save, sha256, summary
-from portfolio.backup import BackupError, newest_age_days, safety_backup
+from portfolio.backup import BackupError, create_backup, newest_age_days, safety_backup
 from portfolio.changes import compare
+from portfolio.health import backup_list, system_health
 from portfolio.history import value_history
+from portfolio.import_log import audit_events, statement_detail, statement_summary
+from portfolio.holdings import holding_detail
 from portfolio.portfolio_view import build_view
 from portfolio.prices import PriceFetchError
 from portfolio.refresh import refresh_all
@@ -119,19 +122,20 @@ def create_app(settings: Settings | None = None, store: Store | None = None,
 
     @app.get("/api/statements")
     def statements() -> dict[str, Any]:
-        return {"statements": [
-            {
-                "id": s["id"], "issuer": s["issuer"], "kind": s["kind"], "cas_type": s["cas_type"],
-                "period_from": s["period_from"].isoformat() if s["period_from"] else None,
-                "period_to": s["period_to"].isoformat(),
-                "imported_at": as_utc(s["imported_at"]).isoformat(),
-                "parser_version": s["parser_version"],
-                # Imported by an older parser: uploading the same PDF again would read more from it.
-                "outdated": s["parser_version"] < PARSER_VERSION,
-                "warnings": s["warnings"].split("\n") if s["warnings"] else [],
-            }
-            for s in store.list_statements()
-        ]}
+        return {"statements": [statement_summary(s) for s in store.list_statements()]}
+
+    @app.get("/api/statements/{statement_id}")
+    def statement(statement_id: int) -> dict[str, Any]:
+        """One statement: what was read from it, and each printed total against the rows read."""
+        found = statement_detail(store, statement_id)
+        if found is None:
+            raise HTTPException(404, "Statement not found")
+        return found
+
+    @app.get("/api/audit")
+    def audit(limit: int = 50) -> dict[str, Any]:
+        """Recent events (import, delete, price refresh), newest first. Event names and short codes only."""
+        return {"events": audit_events(store, max(1, min(limit, 200)))}
 
     @app.delete("/api/statements/{statement_id}")
     def delete_statement(statement_id: int) -> dict[str, str]:
@@ -139,6 +143,29 @@ def create_app(settings: Settings | None = None, store: Store | None = None,
             raise HTTPException(404, "Statement not found")
         store.audit("statement_deleted", f"#{statement_id}")
         return {"status": "deleted"}
+
+    @app.get("/api/health")
+    def health() -> dict[str, Any]:
+        """Database check, disk space, backups, last price refresh and row counts. No portfolio data."""
+        return system_health(store, settings)
+
+    @app.get("/api/backups")
+    def backups() -> dict[str, Any]:
+        return backup_list(settings)
+
+    @app.post("/api/backups")
+    def make_backup() -> JSONResponse:
+        """A verified backup now, encrypted if a gpg recipient is set, pruned to the retention count."""
+        db_file = sqlite_file(store.engine)
+        if db_file is None:
+            raise HTTPException(400, "Backups are for the local SQLite database only.")
+        try:
+            made = create_backup(db_file, Path(settings.backup_dir), recipient=settings.backup_gpg_recipient,
+                                 keep=settings.backup_keep)
+        except BackupError:  # the message can name paths or gpg output, so it stays out of the response
+            raise HTTPException(503, "The backup could not be made. Check the backup folder and the gpg key.")
+        store.audit("backup_created", made.name)
+        return JSONResponse({"name": made.name}, status_code=201)
 
     @app.get("/api/export")
     def export_data() -> JSONResponse:
@@ -169,6 +196,14 @@ def create_app(settings: Settings | None = None, store: Store | None = None,
     @app.get("/api/portfolio")
     def portfolio() -> dict[str, Any]:
         return build_view(store, settings.stale_after_days, concentration_alert_pct=settings.concentration_alert_pct)
+
+    @app.get("/api/holdings/{key:path}")
+    def holding(key: str) -> dict[str, Any]:
+        """One holding (ISIN, or a fund's name when it has none) with where each number comes from."""
+        found = holding_detail(store, key, settings.stale_after_days)
+        if found is None:
+            raise HTTPException(404, "No holding with that ISIN or name in the latest statements.")
+        return found
 
     @app.get("/api/history")
     def history() -> dict[str, Any]:

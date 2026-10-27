@@ -84,8 +84,27 @@ assert.equal(T.toCsv(cols, []), 'Name,Qty,"Note, x"\r\n', "headers even when the
   assert.equal(F.percent(null), "–");
   assert.match(F.day("2026-09-30"), /^30 \w+ 2026$/, "day, month name, year");
   assert.equal(F.day("2026-09-30T23:59:59+00:00").slice(0, 2), "30", "time and zone never shift the day");
+  assert.equal(F.bytes(0), "0 B");
+  assert.equal(F.bytes(999), "999 B");
+  assert.equal(F.bytes(2_400_000), "2.4 MB");
+  assert.equal(F.bytes(512_000_000_000), "512.0 GB");
+  assert.equal(F.bytes(null), "–");
+  assert.match(F.dateTime("2026-10-27T18:30:00+00:00"), /2026/);
+  assert.equal(F.dateTime(null), "–");
   assert.equal(F.day(null), "–");
   assert.equal(F.day(""), "–");
+}
+
+// parseRoute: only known pages count, so "#main" or a typo changes nothing; a second part is the argument
+{
+  const pages = ["overview", "holdings"];
+  assert.deepEqual(T.parseRoute("#/holdings", pages), { page: "holdings", arg: null });
+  assert.deepEqual(T.parseRoute("#/holdings/", pages), { page: "holdings", arg: null });
+  assert.deepEqual(T.parseRoute("#/holdings/INE009A01021", pages), { page: "holdings", arg: "INE009A01021" });
+  assert.deepEqual(T.parseRoute("#/holdings/Some%20Fund%2FPlan", pages), { page: "holdings", arg: "Some Fund/Plan" });
+  for (const bad of ["", "#", "#main", "#/nope", "#/Holdings", "#/holdings/%E0%A4%A", null, undefined]) {
+    assert.equal(T.parseRoute(bad, pages), null, `ignored: ${bad}`);
+  }
 }
 
 console.log("ok");

@@ -246,6 +246,30 @@ class Store:
         with self.engine.connect() as conn:
             return conn.execute(text("PRAGMA user_version")).scalar()
 
+    def recent_audit(self, limit: int) -> list[dict[str, Any]]:
+        """The newest audit events first."""
+        with self.engine.connect() as conn:
+            rows = conn.execute(select(audit_log).order_by(audit_log.c.id.desc()).limit(limit))
+            return [dict(r) for r in rows.mappings()]
+
+    def last_audit(self, event: str) -> dict[str, Any] | None:
+        """The newest audit row for an event, or None."""
+        with self.engine.connect() as conn:
+            row = conn.execute(select(audit_log).where(audit_log.c.event == event)
+                               .order_by(audit_log.c.id.desc()).limit(1)).mappings().first()
+            return dict(row) if row else None
+
+    def table_counts(self) -> dict[str, int]:
+        """How many rows each kind of data has. Counts only, never content."""
+        from sqlalchemy import func
+        counts = {}
+        with self.engine.connect() as conn:
+            for name, table in (("statements", statements), ("demat_rows", stock_holdings), ("fund_rows", mf_holdings),
+                                ("transactions", mf_transactions), ("account_checks", statement_accounts),
+                                ("prices", prices), ("audit_events", audit_log)):
+                counts[name] = conn.execute(select(func.count()).select_from(table)).scalar() or 0
+        return counts
+
     def audit(self, event: str, detail: str | None = None) -> None:
         with self.engine.begin() as conn:
             conn.execute(insert(audit_log).values(ts=utcnow(), event=event, detail=detail))

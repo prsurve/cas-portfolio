@@ -9,7 +9,7 @@ function el(tag, attrs = {}, ...children) {
     else if (k.startsWith("on")) node.addEventListener(k.slice(2), v);
     else node.setAttribute(k, v === true ? "" : v);
   }
-  for (const child of children.flat()) {
+  for (const child of children.flat(Infinity)) {
     if (child === null || child === undefined) continue;
     node.append(child instanceof Node ? child : document.createTextNode(String(child)));
   }
@@ -57,7 +57,7 @@ function expandable(mainCells, subRows) {
   };
   const main = el("tr", {
     class: "holding", tabindex: "0", "aria-expanded": "false",
-    onclick: (e) => toggle(e.currentTarget),
+    onclick: (e) => { if (!e.target.closest("a")) toggle(e.currentTarget); },
     onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(e.currentTarget); } },
   }, mainCells);
   subRows.forEach((r) => { r.hidden = true; r.classList.add("lot"); });
@@ -75,69 +75,6 @@ function svgEl(tag, attrs = {}, ...children) {
     node.append(child instanceof Node ? child : document.createTextNode(String(child)));
   }
   return node;
-}
-
-// ---- upload -------------------------------------------------------------------
-
-function renderUploadResult(r) {
-  const lines = [
-    el("div", { class: "result-title" },
-      `${r.created ? "Imported" : "Already imported"}: ${r.issuer} statement, ${day(r.period_from)} to ${day(r.period_to)}`),
-  ];
-  if (r.kind === "mf") {
-    lines.push(el("div", null, `${r.funds} funds in ${r.folios} folios. Value ${money(r.total_value)}` +
-      (r.total_cost !== null ? `, invested ${money(r.total_cost)}` : "") + `. ${r.transactions} transactions.`));
-  } else {
-    lines.push(el("div", null,
-      `${r.stocks} stocks, ${r.funds} ETFs/funds, ${r.bonds} bonds worth ${money(r.total_value)} ` +
-      `across ${r.accounts.length} demat account(s):`));
-    lines.push(el("ul", null, r.accounts.map((a) => {
-      const ok = Math.abs(a.gap) <= 1;
-      return el("li", { class: ok ? "" : "loss" },
-        `${a.label} ${a.client} (${a.depository}): read ${money(a.imported_value)}` +
-        ` of statement total ${money(a.statement_total)}` + (ok ? " ✓" : ` · ${money(a.gap)} missing`));
-    })));
-    if (r.folio_funds) {
-      lines.push(el("div", null, `Mutual fund folios: ${r.folio_funds} holdings worth ${money(r.folio_value)}` +
-        (r.folio_cost !== null ? `, invested ${money(r.folio_cost)}` : "") + "."));
-    }
-  }
-  for (const w of r.warnings) lines.push(el("div", { class: "loss" }, `Warning: ${w}`));
-  for (const n of r.notes) lines.push(el("div", { class: "subtle" }, n));
-  lines.push(el("div", { class: "subtle" }, "Check these totals against the PDF. If something is wrong, delete the statement below."));
-  document.getElementById("upload-result").replaceChildren(el("div", { class: "result" }, lines));
-}
-
-async function upload(event) {
-  event.preventDefault();
-  const fileInput = document.getElementById("pdf");
-  const passwordInput = document.getElementById("password");
-  const btn = document.getElementById("upload-btn");
-  const file = fileInput.files[0];
-  if (!file) return;
-  const resultBox = document.getElementById("upload-result");
-  btn.disabled = true;
-  btn.textContent = "Reading…";
-  resultBox.setAttribute("aria-busy", "true");
-  resultBox.replaceChildren(el("div", { class: "result" }, "Reading the statement. A large one can take up to a minute."));
-  try {
-    const result = await api("/api/statements", {
-      method: "POST",
-      headers: { "Content-Type": "application/pdf", "X-PDF-Password": passwordInput.value },
-      body: file,
-    });
-    renderUploadResult(result);
-    fileInput.value = "";
-    await load();
-  } catch (err) {
-    resultBox.replaceChildren(el("div", { class: "result error" }, err.message));
-  } finally {
-    resultBox.removeAttribute("aria-busy");
-    resultBox.focus();  // so the result or the error is announced and the next Tab starts after it
-    passwordInput.value = "";  // never kept in the page
-    btn.disabled = false;
-    btn.textContent = "Upload";
-  }
 }
 
 // ---- dashboard ----------------------------------------------------------------
@@ -214,9 +151,10 @@ function renderHistory(points) {
 
 // ---- completeness ------------------------------------------------------------------
 
+const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
 function completenessChecks(c) {
   const checks = [];  // [ok, text, detail?]
-  const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
   if (c.demat) {
     const d = c.demat;
     if (!d.available) {
@@ -269,15 +207,77 @@ function completenessChecks(c) {
   return checks;
 }
 
+function checkItem([ok, text, detail]) {
+  return el("li", { class: ok ? "ok" : "warn" },
+    el("span", { class: "mark", "aria-hidden": "true" }, ok ? "✓" : "!"),
+    el("div", null,
+      el("span", { class: "sr-only" }, ok ? "OK: " : "Needs attention: "), text,
+      detail ? el("div", { class: "detail" }, detail) : null));
+}
+
+// What needs attention comes first and the passing checks fold away, so a clean portfolio is a single line.
 function renderCompleteness(p) {
   const checks = completenessChecks(p.completeness);
   document.getElementById("complete-section").hidden = checks.length === 0;
-  document.getElementById("completeness").replaceChildren(...checks.map(([ok, text, detail]) =>
-    el("li", { class: ok ? "ok" : "warn" },
-      el("span", { class: "mark", "aria-hidden": "true" }, ok ? "✓" : "!"),
-      el("div", null,
-        el("span", { class: "sr-only" }, ok ? "OK: " : "Needs attention: "), text,
-        detail ? el("div", { class: "detail" }, detail) : null))));
+  const failing = checks.filter((c) => !c[0]), passing = checks.filter((c) => c[0]);
+  document.getElementById("completeness-summary").textContent = failing.length === 0
+    ? "All checks passed. Every number below is backed by what the statements printed."
+    : `${plural(failing.length, "thing")} to look at. The figures they affect are less certain until fixed.`;
+  document.getElementById("completeness").replaceChildren(...failing.map(checkItem));
+  const folded = document.getElementById("completeness-ok");
+  folded.hidden = passing.length === 0;
+  document.getElementById("completeness-ok-summary").textContent = `${passing.length} ${passing.length === 1 ? "check" : "checks"} passed`;
+  document.getElementById("completeness-passed").replaceChildren(...passing.map(checkItem));
+}
+
+// How old each source is. A figure is only as current as its statement, so say so beside the totals.
+function freshnessChecks(p) {
+  const rows = [];
+  for (const [label, s] of [["Stocks and ETFs (demat statement)", p.statements.demat], ["Mutual funds", p.statements.mf]]) {
+    if (!s) continue;
+    rows.push([!s.stale, `${label}: statement dated ${day(s.period_to)}, ${plural(s.age_days, "day")} old.`,
+      s.stale ? "Older than this app's limit. Upload a newer statement; the values above are as of that date." : null]);
+  }
+  const dates = [...p.stocks, ...p.funds].map((h) => h.latest && h.latest.price_date).filter(Boolean).sort();
+  rows.push(dates.length === 0
+    ? [false, "No latest prices yet.", "Use Refresh prices. Until then every value is a statement value."]
+    : [true, `Latest prices: newest is from ${day(dates[dates.length - 1])}, oldest ${day(dates[0])}.`,
+        "From AMFI (fund NAVs) and NSE or BSE closing prices. Shown beside statement values, never added into them."]);
+  return rows;
+}
+
+function renderFreshness(p) {
+  const rows = freshnessChecks(p);
+  document.getElementById("fresh-section").hidden = rows.length === 0;
+  document.getElementById("freshness").replaceChildren(...rows.map(checkItem));
+}
+
+// The Overview's short version of the comparison: the two latest statements, the biggest movers, a link for the rest.
+let lastOverviewKey = null;
+async function renderOverviewChange(points) {
+  const section = document.getElementById("prev-section");
+  section.hidden = points.length < 2;
+  if (points.length < 2) return;
+  const key = JSON.stringify(points.map((pt) => [pt.date, pt.value]));
+  if (key === lastOverviewKey) return;
+  try {
+    const r = await api("/api/changes");
+    const total = r.demat.totals.change + r.funds.totals.change;
+    document.getElementById("prev-summary").replaceChildren(
+      `${day(r.from)} to ${day(r.to)}: your holdings moved by `, el("strong", { class: signClass(total) }, money(total)),
+      `. Buying and selling account for ${money(r.demat.totals.quantity_effect + r.funds.totals.quantity_effect)}, ` +
+      `price moves for ${money(r.demat.totals.price_effect + r.funds.totals.price_effect)}.`);
+    const rows = [...r.demat.changes, ...r.funds.changes]
+      .map((c) => ({ ...c, change: c.value_after - c.value_before }))
+      .sort((a, b) => Math.abs(b.change) - Math.abs(a.change)).slice(0, 5);
+    document.getElementById("prev-list").replaceChildren(...rows.map((c) => el("li", null,
+      el("span", null, c.name, el("span", { class: "subtle" }, ` · ${CHANGE_KINDS[c.kind] || c.kind}`)),
+      el("span", { class: `num ${signClass(c.change)}` }, money(c.change)))));
+    lastOverviewKey = key;  // only a success is remembered
+  } catch (err) {
+    document.getElementById("prev-summary").textContent = `Could not compare: ${err.message}`;
+    document.getElementById("prev-list").replaceChildren();
+  }
 }
 
 // ---- changes between statements ---------------------------------------------------
@@ -471,215 +471,14 @@ async function refreshPrices() {
   }
 }
 
-// ---- search, sort and export for the holdings tables -------------------------------
+// ---- holdings: see holdings.js ----------------------------------------------------
 
 const Tools = window.PortfolioTools;
-const tableState = {
-  stocks: { query: "", type: "all", key: "value", dir: "desc" },
-  funds: { query: "", key: "value", dir: "desc" },
-};
-const STOCK_SORT = {
-  name: (h) => h.name, quantity: (h) => h.quantity, price: (h) => h.price, value: (h) => h.value,
-  latest: (h) => (h.latest ? h.latest.value : null), weight: (h) => h.value, brokers: (h) => h.brokers[0] || null,
-};
-const FUND_SORT = {
-  scheme: (f) => f.scheme, units: (f) => f.units, nav: (f) => f.nav, cost: (f) => f.cost, value: (f) => f.value,
-  gain: (f) => f.gain, latest: (f) => (f.latest ? f.latest.value : null),
-};
-
-function visibleStocks(p) {
-  const s = tableState.stocks;
-  const multiOnly = document.getElementById("multi-only").checked;
-  const list = p.stocks.filter((h) =>
-    (!multiOnly || h.accounts.length > 1) && (s.type === "all" || h.asset_type === s.type)
-    && Tools.matchesQuery([h.name, h.symbol, h.isin, ...h.brokers, ...h.accounts.map((a) => a.client)], s.query));
-  return Tools.sortRows(list, STOCK_SORT[s.key], s.dir);
-}
-
-function visibleFunds(p) {
-  const s = tableState.funds;
-  const list = p.funds.filter((f) =>
-    Tools.matchesQuery([f.scheme, f.amc, f.isin, f.scheme_type, ...f.folios.map((x) => x.folio)], s.query));
-  return Tools.sortRows(list, FUND_SORT[s.key], s.dir);
-}
-
-function showCount(id, shown, total, noun) {
-  document.getElementById(id).textContent = shown === total ? `${total} ${noun}` : `Showing ${shown} of ${total} ${noun}`;
-}
-
-// Header cells become buttons: click to sort, click again to reverse.
-function makeSortable(tableId, state, rerender) {
-  for (const th of document.querySelectorAll(`#${tableId} th[data-sort]`)) {
-    const key = th.dataset.sort;
-    th.replaceChildren(el("button", {
-      type: "button", class: "sort",
-      onclick: () => {
-        if (state.key === key) state.dir = state.dir === "asc" ? "desc" : "asc";
-        else { state.key = key; state.dir = th.classList.contains("num") ? "desc" : "asc"; }
-        rerender();
-      },
-    }, th.textContent.trim()));
-  }
-}
-
-function markSorted(tableId, state) {
-  for (const th of document.querySelectorAll(`#${tableId} th[data-sort]`)) {
-    const on = th.dataset.sort === state.key;
-    th.setAttribute("aria-sort", on ? (state.dir === "asc" ? "ascending" : "descending") : "none");
-    th.querySelector("button").dataset.arrow = on ? (state.dir === "asc" ? "▲" : "▼") : "";
-  }
-  const select = document.getElementById(`${tableId}-sort`);
-  if (select) select.value = `${state.key}:${state.dir}`;
-}
-
-// On a phone the header row is hidden, so sorting moves to a dropdown that offers the same columns.
-function setupMobileSort(tableId, state, rerender) {
-  const select = document.getElementById(`${tableId}-sort`);
-  for (const th of document.querySelectorAll(`#${tableId} th[data-sort]`)) {
-    const name = th.textContent.trim(), numeric = th.classList.contains("num");
-    for (const dir of numeric ? ["desc", "asc"] : ["asc", "desc"]) {
-      const how = numeric ? (dir === "desc" ? "high to low" : "low to high") : (dir === "asc" ? "A to Z" : "Z to A");
-      select.append(el("option", { value: `${th.dataset.sort}:${dir}` }, `${name}: ${how}`));
-    }
-  }
-  select.value = `${state.key}:${state.dir}`;
-  select.addEventListener("change", () => {
-    [state.key, state.dir] = select.value.split(":");
-    rerender();
-  });
-}
-
-const orNull = (l, field) => (l ? l[field] : null);
-const STOCK_CSV = [
-  { header: "Name", value: (h) => h.name },
-  { header: "Type", value: (h) => ASSET_TYPES[h.asset_type] || h.asset_type },
-  { header: "Symbol", value: (h) => h.symbol },
-  { header: "ISIN", value: (h) => h.isin },
-  { header: "Quantity", value: (h) => h.quantity },
-  { header: "Statement price", value: (h) => h.price },
-  { header: "Statement value", value: (h) => h.value },
-  { header: "Latest price", value: (h) => orNull(h.latest, "price") },
-  { header: "Latest value", value: (h) => orNull(h.latest, "value") },
-  { header: "Latest price date", value: (h) => orNull(h.latest, "price_date") },
-  { header: "Price source", value: (h) => orNull(h.latest, "source") },
-  { header: "Accounts", value: (h) => h.accounts.map((a) => `${a.label} ${a.client}`).join("; ") },
-];
-const FUND_CSV = [
-  { header: "Scheme", value: (f) => f.scheme },
-  { header: "Fund house", value: (f) => f.amc },
-  { header: "ISIN", value: (f) => f.isin },
-  { header: "Type", value: (f) => f.scheme_type },
-  { header: "Units", value: (f) => f.units },
-  { header: "Statement NAV", value: (f) => f.nav },
-  { header: "Statement NAV date", value: (f) => f.nav_date },
-  { header: "Invested", value: (f) => f.cost },
-  { header: "Statement value", value: (f) => f.value },
-  { header: "Gain", value: (f) => f.gain },
-  { header: "Latest NAV", value: (f) => orNull(f.latest, "price") },
-  { header: "Latest value", value: (f) => orNull(f.latest, "value") },
-  { header: "Latest NAV date", value: (f) => orNull(f.latest, "price_date") },
-  { header: "Folios", value: (f) => f.folios.map((x) => x.folio).join("; ") },
-];
-
-// Saves exactly what the table shows (filters and sort applied) as a file in the browser.
-// A byte-order mark makes Excel read it as UTF-8.
-function downloadCsv(filename, text) {
-  const url = URL.createObjectURL(new Blob(["\ufeff", text], { type: "text/csv;charset=utf-8" }));
-  const link = el("a", { href: url, download: filename });
-  document.body.append(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-function renderFunds(p) {
-  document.getElementById("funds-section").hidden = p.funds.length === 0;
-  if (p.statements.mf) {
-    document.getElementById("funds-asof").textContent =
-      `· ${ISSUERS[p.statements.mf.issuer]} statement to ${day(p.statements.mf.period_to)}`;
-  }
-  const list = visibleFunds(p);
-  const rows = list.flatMap((f) => expandable([
-    el("td", null, el("div", { class: "symbol" }, f.scheme),
-      el("div", { class: "subtle" },
-        [f.amc, f.scheme_type, `${f.folios.length} folio${f.folios.length > 1 ? "s" : ""}`].filter(Boolean).join(" · "))),
-    el("td", { class: "num", "data-label": "Units" }, qtyFmt.format(f.units)),
-    el("td", { class: "num", "data-label": "NAV" }, price(f.nav), el("div", { class: "subtle" }, day(f.nav_date))),
-    el("td", { class: "num", "data-label": "Invested" }, money(f.cost)),
-    el("td", { class: "num", "data-label": "Value" }, money(f.value)),
-    el("td", { class: `num ${signClass(f.gain)}`, "data-label": "Gain" }, money(f.gain), el("div", { class: "subtle" }, pct(f.gain_pct))),
-    latestCell(f.latest, "At latest NAV"),
-  ], f.folios.map((x) => el("tr", null,
-    el("td", null, `Folio ${x.folio}`),
-    el("td", { class: "num", "data-label": "Units" }, qtyFmt.format(x.units)),
-    el("td"),
-    el("td", { class: "num", "data-label": "Invested" }, money(x.cost)),
-    el("td", { class: "num", "data-label": "Value" }, money(x.value)),
-    el("td"), el("td")))));
-  if (rows.length === 0 && p.funds.length) {
-    rows.push(el("tr", null, el("td", { colspan: "7", class: "empty" }, "No fund matches the search.")));
-  }
-  showCount("funds-count", list.length, p.funds.length, "folio funds");
-  markSorted("funds", tableState.funds);
-  document.querySelector("#funds tbody").replaceChildren(...rows);
-}
-
-function renderStocks(p) {
-  document.getElementById("stocks-section").hidden = p.stocks.length === 0;
-  if (p.statements.demat) {
-    document.getElementById("stocks-asof").textContent =
-      `· ${ISSUERS[p.statements.demat.issuer]} statement to ${day(p.statements.demat.period_to)}`;
-  }
-  const total = p.totals.demat_value;
-  const list = visibleStocks(p);
-  const rows = list.flatMap((h) => expandable([
-    el("td", null, el("div", { class: "symbol" }, h.name),
-      el("div", { class: "subtle" },
-        [ASSET_TYPES[h.asset_type] || h.asset_type, h.symbol, h.isin].filter(Boolean).join(" · "))),
-    el("td", { class: "num", "data-label": "Quantity" }, qtyFmt.format(h.quantity)),
-    el("td", { class: "num", "data-label": "Price" }, price(h.price)),
-    el("td", { class: "num", "data-label": "Value" }, money(h.value)),
-    latestCell(h.latest, "At latest price"),
-    el("td", { class: "num", "data-label": "Weight" }, total ? `${((h.value / total) * 100).toFixed(1)}%` : "–"),
-    el("td", { "data-label": "Brokers" }, el("div", { class: "chips" }, h.brokers.map((b) => el("span", { class: "chip" }, b)))),
-  ], h.accounts.map((a) => el("tr", null,
-    el("td", null, `${a.label} ${a.client} · ${a.depository}`),
-    el("td", { class: "num", "data-label": "Quantity" }, qtyFmt.format(a.quantity)),
-    el("td"),
-    el("td", { class: "num", "data-label": "Value" }, money(a.value)),
-    el("td"), el("td"), el("td")))));
-  if (rows.length === 0 && p.stocks.length) {
-    rows.push(el("tr", null, el("td", { colspan: "7", class: "empty" }, "No holding matches the search and filters.")));
-  }
-  showCount("stocks-count", list.length, p.stocks.length, "holdings");
-  markSorted("stocks", tableState.stocks);
-  document.querySelector("#stocks tbody").replaceChildren(...rows);
-}
-
-function statementStatus(s) {
-  const notes = [];
-  if (s.outdated) notes.push(el("div", { class: "loss" }, "Read by an older version. Upload this PDF again to refresh it."));
-  if (s.warnings.length) notes.push(el("div", { class: "loss" }, `${s.warnings.length} warning(s)`));
-  return notes.length ? notes : "OK";
-}
-
-function renderStatements(list) {
-  const rows = list.map((s) => el("tr", null,
-    el("td", { "data-label": "Issuer" }, ISSUERS[s.issuer] || s.issuer),
-    el("td", { "data-label": "Covers" }, s.kind === "mf" ? "Mutual funds" : "Stocks"),
-    el("td", { "data-label": "Period" }, `${day(s.period_from)} – ${day(s.period_to)}`),
-    el("td", { "data-label": "Imported" }, day(s.imported_at)),
-    el("td", { "data-label": "Status" }, statementStatus(s)),
-    el("td", { class: "num" }, el("button", { type: "button", onclick: () => removeStatement(s) }, "Delete"))));
-  if (rows.length === 0) {
-    rows.push(el("tr", null, el("td", { colspan: "6", class: "empty" }, "Nothing imported yet. Upload a statement above.")));
-  }
-  document.querySelector("#statements tbody").replaceChildren(...rows);
-}
 
 function collectAlerts(p) {
   const alerts = [];
   const { demat, mf } = p.statements;
+  if (!mf && !demat) return alerts;  // the first-run steps on the Overview already say so
   if (!mf) alerts.push("No mutual fund data yet. Upload your NSDL/CDSL or CAMS/KFintech CAS.");
   if (!demat) alerts.push("No demat statement yet. Upload your NSDL or CDSL CAS for stocks and ETFs.");
   for (const [label, s] of [["Stock", demat], ["Mutual fund", mf]]) {
@@ -707,13 +506,16 @@ async function load() {
     document.getElementById("prices-bar").hidden = empty;
     renderTotals(portfolio);
     renderCompleteness(portfolio);
+    renderFreshness(portfolio);
+    renderOverviewChange(history.points);
     renderHistory(history.points);
     setupChanges(history.points);
     renderAllocation(portfolio);
     renderConcentration(portfolio);
-    renderFunds(portfolio);
-    renderStocks(portfolio);
+    renderHoldings(portfolio);
+    if (currentHoldingKey !== null) showHoldings(currentHoldingKey, false);  // a reload may have changed it
     renderStatements(statements.statements);
+    loadAudit();  // not awaited: the activity list failing must not break the page
     showAlerts(collectAlerts(portfolio));
   } catch (err) {
     showLoadError(err);
@@ -722,60 +524,26 @@ async function load() {
   }
 }
 
-async function removeStatement(s) {
-  if (!confirm(`Delete the ${ISSUERS[s.issuer]} statement to ${day(s.period_to)}? Its holdings are removed.`)) return;
-  try {
-    await api(`/api/statements/${s.id}`, { method: "DELETE" });
-  } catch (err) {
-    showAlerts([`Delete failed: ${err.message}`]);
-    return;
-  }
-  await load();
-}
-
-async function deleteAllData() {
-  const phrase = "delete all data";
-  const typed = prompt(`This removes every imported statement and price from this machine. Export first if you want a copy.\n\nType "${phrase}" to confirm.`);
-  if (typed === null) return;
-  if (typed.trim() !== phrase) { showAlerts(["Nothing was deleted: the phrase did not match."]); return; }
-  try {
-    await api("/api/data", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirm: phrase }) });
-  } catch (err) {
-    showAlerts([`Delete failed: ${err.message}`]);
-    return;
-  }
-  await load();
-}
-
-document.getElementById("delete-data").addEventListener("click", deleteAllData);
 document.getElementById("refresh-prices").addEventListener("click", refreshPrices);
+// Charts depend on their width, so they are drawn again when it changes and when their page is shown.
+const redrawSized = () => {
+  if (lastPortfolio) renderAllocation(lastPortfolio);
+  if (lastHistory) renderHistory(lastHistory);
+};
 let resizeTimer = null;
-window.addEventListener("resize", () => {  // segment widths change, so which labels fit does too
+window.addEventListener("resize", () => {
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => {
-    if (lastPortfolio) renderAllocation(lastPortfolio);
-    if (lastHistory) renderHistory(lastHistory);
-  }, 150);
+  resizeTimer = setTimeout(redrawSized, 150);
 });
 document.getElementById("chg-from").addEventListener("change", loadChanges);
 document.getElementById("chg-to").addEventListener("change", loadChanges);
-document.getElementById("upload-form").addEventListener("submit", upload);
-const rerenderStocks = () => lastPortfolio && renderStocks(lastPortfolio);
-const rerenderFunds = () => lastPortfolio && renderFunds(lastPortfolio);
-makeSortable("stocks", tableState.stocks, rerenderStocks);
-makeSortable("funds", tableState.funds, rerenderFunds);
-setupMobileSort("stocks", tableState.stocks, rerenderStocks);
-setupMobileSort("funds", tableState.funds, rerenderFunds);
-document.getElementById("multi-only").addEventListener("change", rerenderStocks);
-document.getElementById("stocks-q").addEventListener("input", Tools.debounce((e) => { tableState.stocks.query = e.target.value; rerenderStocks(); }, 150));
-document.getElementById("stocks-type").addEventListener("change", (e) => { tableState.stocks.type = e.target.value; rerenderStocks(); });
-document.getElementById("funds-q").addEventListener("input", Tools.debounce((e) => { tableState.funds.query = e.target.value; rerenderFunds(); }, 150));
-document.getElementById("stocks-csv").addEventListener("click", () => {
-  if (!lastPortfolio || !lastPortfolio.statements.demat) return;
-  downloadCsv(`demat-holdings-${lastPortfolio.statements.demat.period_to}.csv`, Tools.toCsv(STOCK_CSV, visibleStocks(lastPortfolio)));
-});
-document.getElementById("funds-csv").addEventListener("click", () => {
-  if (!lastPortfolio || !lastPortfolio.statements.mf) return;
-  downloadCsv(`mutual-funds-${lastPortfolio.statements.mf.period_to}.csv`, Tools.toCsv(FUND_CSV, visibleFunds(lastPortfolio)));
+initHoldings();
+initImports();
+initSettings();
+window.Nav.init((page, arg, moveFocus) => {
+  redrawSized();
+  if (page === "settings") loadSettings();
+  if (page === "holdings") showHoldings(arg, moveFocus);
+  else currentHoldingKey = null;  // so a reload while on another page does not fetch a detail nobody is looking at
 });
 load();

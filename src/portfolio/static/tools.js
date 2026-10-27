@@ -74,10 +74,32 @@
     // A signed percentage such as +4.2%. Missing gives a dash like every other figure.
     percent: (n) => (missing(n) ? MISSING : `${pct1.format(n)}%`),
     // ISO date (or datetime) to "27 Oct 2026". Parsed as a local date so the day never shifts with the time zone.
+    // File and disk sizes: "2.4 MB". Decimal units, one decimal place above bytes.
+    bytes: (n) => {
+      if (missing(n)) return MISSING;
+      const units = ["B", "KB", "MB", "GB", "TB"];
+      let v = n, i = 0;
+      while (v >= 1000 && i < units.length - 1) { v /= 1000; i += 1; }
+      return i === 0 ? `${v} B` : `${v.toFixed(1)} ${units[i]}`;
+    },
+    // A timestamp such as "27 Oct 2026, 6:30 pm" in the viewer's own time zone.
+    dateTime: (iso) => (iso ? new Date(iso).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : MISSING),
     day: (iso) => (iso ? date.format(new Date(`${String(iso).slice(0, 10)}T00:00:00`)) : MISSING),
   };
 
-  const api = { matchesQuery, sortRows, csvCell, toCsv, debounce, fmt };
+  // "#/holdings" gives { page: "holdings", arg: null }; "#/holdings/INE009A01021" adds the argument (decoded).
+  // Anything that is not a known page ("#main", a typo) gives null, so it changes nothing.
+  function parseRoute(hash, pages) {
+    const m = /^#\/([a-z]+)(?:\/(.*))?$/.exec(String(hash || ""));
+    if (!m || !pages.includes(m[1])) return null;
+    let arg = null;
+    if (m[2]) {
+      try { arg = decodeURIComponent(m[2]); } catch (e) { return null; }
+    }
+    return { page: m[1], arg };
+  }
+
+  const api = { matchesQuery, sortRows, csvCell, toCsv, debounce, fmt, parseRoute };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.PortfolioTools = api;
 })(typeof self !== "undefined" ? self : this);

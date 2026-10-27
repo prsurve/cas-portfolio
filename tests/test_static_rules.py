@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 
 STATIC = Path(__file__).resolve().parent.parent / "src" / "portfolio" / "static"
-JS = [STATIC / "app.js", STATIC / "tools.js"]
+JS = [STATIC / "app.js", STATIC / "tools.js", STATIC / "nav.js", STATIC / "holdings.js", STATIC / "imports.js", STATIC / "settings.js", STATIC / "theme.js"]
 
 # Validated with the dataviz skill's scripts/validate_palette.js against this app's card surfaces
 # (adjacent pairs, light #ffffff and dark #1f1f1d). Change a hex and the check must be run again.
@@ -17,12 +17,25 @@ SERIES = {
 def test_chart_palette_is_the_validated_one():
     css = (STATIC / "app.css").read_text()
     found = re.findall(r"--series-(\d):\s*(#[0-9a-fA-F]{6});", css)
-    assert [(n, h) for n, h in found[:4]] == [(str(i + 1), h) for i, h in enumerate(SERIES["light"])]
-    assert [(n, h) for n, h in found[4:8]] == [(str(i + 1), h) for i, h in enumerate(SERIES["dark"])]
-    assert len(found) == 8, "a series colour was added or dropped: validate the palette again"
+    expected_light = [(str(i + 1), h) for i, h in enumerate(SERIES["light"])]
+    expected_dark = [(str(i + 1), h) for i, h in enumerate(SERIES["dark"])]
+    # light, dark when the system is dark, dark when forced from Settings: the last two must be identical
+    assert found[:4] == expected_light and found[4:8] == expected_dark and found[8:12] == expected_dark
+    assert len(found) == 12, "a series colour was added or dropped: validate the palette again"
     # the dark values live inside the dark-mode media query
     dark_block = css[css.index("prefers-color-scheme: dark"):]
-    assert all(h in dark_block[:600] for h in SERIES["dark"])
+    assert all(h in dark_block[:900] for h in SERIES["dark"])
+
+
+def test_forced_dark_theme_is_a_copy_of_the_system_dark_theme():
+    """Dark exists twice (system dark, and forced from Settings). They must never drift apart."""
+    css = (STATIC / "app.css").read_text()
+    media = css[css.index('@media (prefers-color-scheme: dark)'):css.index(':root[data-theme="dark"]')]
+    forced = css[css.index(':root[data-theme="dark"]'):css.index(':root[data-theme="light"]')]
+    tokens = lambda block: dict(re.findall(r"--([\w-]+):\s*(#[0-9a-fA-F]{6})", block))  # noqa: E731
+    assert tokens(media) == tokens(forced) and len(tokens(media)) >= 14
+    assert 'color-scheme: dark' in forced
+    assert ':root:not([data-theme="light"])' in media, "an explicit light choice must beat a dark system"
 
 
 def test_script_never_writes_inline_styles_or_markup():
@@ -54,10 +67,10 @@ def test_nothing_can_stretch_the_page_sideways():
 def test_every_table_column_has_a_phone_label():
     """On a phone a row becomes a card and each number is labelled from data-label. A new column needs a label."""
     html = (STATIC / "index.html").read_text()
-    js = (STATIC / "app.js").read_text()
+    js = "".join(p.read_text() for p in JS)
     assert "@media (max-width: 640px)" in (STATIC / "app.css").read_text()
     tables = re.findall(r'<table id="(\w+)" class="cards">(.*?)</table>', html, re.S)
-    assert {t[0] for t in tables} == {"history", "changes", "funds", "stocks", "statements"}
+    assert {t[0] for t in tables} == {"history", "changes", "holdings", "statements", "audit", "backups"}
     for table_id, body in tables:
         headings = re.findall(r"<th[^>]*>(.*?)</th>", body, re.S)
         for index, raw in enumerate(headings):
@@ -82,8 +95,8 @@ def test_screen_reader_text_does_not_wrap():
 
 
 def test_search_boxes_are_debounced():
-    js = (STATIC / "app.js").read_text()
-    assert js.count("Tools.debounce(") == 2
+    js = "".join(p.read_text() for p in JS)
+    assert js.count("Tools.debounce(") == 1, "the one search box is debounced"
 
 
 def _theme_colours():
@@ -136,8 +149,9 @@ def test_there_is_a_tablet_breakpoint_and_big_touch_targets():
 def test_every_element_the_script_looks_up_exists_in_the_page():
     """A renamed or removed id would otherwise fail only in the browser, as a null error."""
     html = (STATIC / "index.html").read_text()
-    ids = set(re.findall(r'id="([\w-]+)"', html))
-    wanted = set(re.findall(r'getElementById\("([\w-]+)"\)', (STATIC / "app.js").read_text()))
+    scripts = "".join(p.read_text() for p in JS)
+    ids = set(re.findall(r'id="([\w-]+)"', html)) | set(re.findall(r'\bid: "([\w-]+)"', scripts))  # JS can create ids too
+    wanted = set(re.findall(r'getElementById\("([\w-]+)"\)', scripts))
     assert wanted - ids == set(), f"app.js looks up ids that index.html lacks: {sorted(wanted - ids)}"
 
 
@@ -148,3 +162,98 @@ def test_new_install_shows_steps_and_load_errors_offer_a_retry():
     assert 'getElementById("empty-state").hidden = !empty' in js
     assert "Try again" in js and "showLoadError(err)" in js
     assert re.search(r'id="upload-result"[^>]*tabindex="-1"', html), "the upload result must be focusable so it can be announced"
+
+
+def test_shell_has_landmarks_skip_link_and_one_page_per_nav_link():
+    html = (STATIC / "index.html").read_text()
+    nav = (STATIC / "nav.js").read_text()
+    assert html.count("<main") == 1 and 'aria-label="Main"' in html and 'id="skip-link"' in html
+    links = re.findall(r'data-nav="(\w+)"', html)
+    pages = re.findall(r'class="page" id="page-(\w+)" data-page="\1" hidden', html)
+    assert links == pages and len(links) == len(set(links)) >= 5
+    declared = re.search(r"const PAGES = \[(.*?)\]", nav).group(1)
+    assert re.findall(r'"(\w+)"', declared) == links, "nav.js and index.html disagree about the pages"
+    for page in pages:  # each page has its own h1, which receives focus on navigation
+        assert f'<h1 id="{page}-title" tabindex="-1">' in html
+    assert html.count("<h1") == len(pages), "one h1 per page"
+    assert html.index("/static/tools.js") < html.index("/static/nav.js") < html.index("/static/holdings.js") < html.index("/static/imports.js") < html.index("/static/settings.js") < html.index("/static/app.js")
+
+
+def test_every_table_and_control_lives_inside_a_page():
+    """A section left outside a .page would show on every page."""
+    html = (STATIC / "index.html").read_text()
+    main = html[html.index("<main"):html.index("</main>")]
+    outside = re.sub(r'<div class="page".*?\n    </div>\n', "", main, flags=re.S)
+    assert "<section" not in outside and "<table" not in outside
+
+
+def test_nav_is_a_bottom_bar_on_phones_and_marks_the_current_page_without_colour_alone():
+    css = (STATIC / "app.css").read_text()
+    assert re.search(r"\.nav a\[aria-current=\"page\"\]\s*\{[^}]*font-weight:\s*600", css)
+    assert re.search(r"@media \(max-width: 640px\) \{\s*\.shell \{ display: block; \}.*?\.side \{ position: fixed", css, re.S)
+
+
+def test_hidden_attribute_always_wins_over_display_rules():
+    """Found by looking at the page: .tiles { display: grid } kept the empty install's totals on screen."""
+    assert re.search(r"\[hidden\]\s*\{\s*display:\s*none\s*!important", (STATIC / "app.css").read_text())
+
+
+def test_links_use_the_theme_colour():
+    assert re.search(r"^a \{ color: var\(--accent\); \}", (STATIC / "app.css").read_text(), re.M)
+
+
+def test_overview_has_its_panels_and_links_to_the_pages_behind_them():
+    html = (STATIC / "index.html").read_text()
+    start = html.index('id="page-overview"')
+    overview = html[start:html.index('id="page-holdings"')]
+    for panel in ("totals", "prices-bar", "fresh-section", "prev-section", "complete-section", "alloc-section", "conc-section"):
+        assert f'id="{panel}"' in overview, f"Overview lost its {panel} panel"
+    for target in ("#/imports", "#/holdings", "#/performance"):
+        assert f'href="{target}"' in overview, f"Overview has no link to {target}"
+    assert overview.index('id="totals"') < overview.index('id="fresh-section"') < overview.index('id="prev-section"') \
+        < overview.index('id="complete-section"') < overview.index('id="alloc-section"')
+
+
+def test_data_quality_lists_what_needs_attention_first_and_folds_the_rest():
+    js = (STATIC / "app.js").read_text()
+    assert "failing.map(checkItem)" in js and "passing.map(checkItem)" in js
+    assert 'id="completeness-ok"' in (STATIC / "index.html").read_text()
+
+
+def test_el_flattens_nested_children():
+    """A nested array of elements reached the page as '[object HTMLElement]' until el() flattened all levels."""
+    assert "children.flat(Infinity)" in (STATIC / "app.js").read_text()
+
+
+def test_nothing_that_can_be_null_is_passed_straight_to_replaceChildren():
+    """replaceChildren(null) prints the word 'null'. Optional pieces go inside el(), which skips null."""
+    js = (STATIC / "holdings.js").read_text()
+    detail = js[js.index("function renderHoldingDetail"):js.index("// Shows the list")]
+    assert detail.count("replaceChildren(el(") == 1, "the detail view builds one el() wrapper"
+
+
+def test_import_and_holding_views_never_pass_optional_values_straight_to_replaceChildren():
+    """A ternary that can give null as a direct argument prints the word 'null' on the page (seen twice)."""
+    for name in ("imports.js", "holdings.js"):
+        js = (STATIC / name).read_text()
+        for call in re.finditer(r"replaceChildren\(\n(?:[^()]|\([^()]*\))*?: null,?\n", js):
+            raise AssertionError(f"{name}: replaceChildren with a possibly-null argument near: {call.group(0)[:80]!r}")
+
+
+def test_theme_is_applied_from_the_head_before_the_page_is_drawn():
+    html = (STATIC / "index.html").read_text()
+    assert html.index("/static/theme.js") < html.index("</head>"), "theme.js must load in <head> so there is no flash of the wrong theme"
+    js = (STATIC / "theme.js").read_text()
+    assert 'VALID = ["system", "light", "dark"]' in js and "portfolio.theme" in js
+
+
+def test_delete_all_uses_a_dialog_not_a_prompt_and_stays_disabled_until_the_phrase_matches():
+    html, js = (STATIC / "index.html").read_text(), "".join(p.read_text() for p in JS)
+    assert "<dialog" in html and "prompt(" not in js
+    assert re.search(r'id="delete-confirm"[^>]*\bdisabled\b', html)
+    assert "delete all data" in js and "showModal()" in js
+
+
+def test_danger_button_text_is_readable_in_both_themes():
+    for name, t in zip(("light", "dark"), _theme_colours()):
+        assert contrast(t["bg"], t["loss"]) >= 4.5, f"{name}: danger button text"

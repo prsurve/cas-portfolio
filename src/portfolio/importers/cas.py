@@ -492,8 +492,13 @@ def summary(st: ParsedStatement) -> dict[str, Any]:
                 "depository": a.depository, "broker": a.broker, "label": broker_label(a.dp_name), "dp_name": a.dp_name,
                 "client": a.client_id_masked, "stocks": a.stocks, "funds": a.funds, "bonds": a.bonds,
                 "imported_value": num(a.imported_value), "statement_total": num(a.statement_total),
-                "gap": num(a.gap),
+                "gap": num(a.gap), "ok": abs(a.gap) <= TOLERANCE,
             } for a in st.accounts],
+            folio_check=None if st.folio_reconciliation is None else {
+                "statement_total": num(st.folio_reconciliation[0]), "imported_value": num(st.folio_reconciliation[1]),
+                "gap": num(st.folio_reconciliation[0] - st.folio_reconciliation[1]),
+                "ok": abs(st.folio_reconciliation[0] - st.folio_reconciliation[1]) <= TOLERANCE,
+            },
         )
     return out
 
