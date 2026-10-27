@@ -131,6 +131,9 @@ def refresh_nav(store: Any, fetch: Callable[[], str] = fetch_navall) -> dict[str
 
 def main() -> int:
     from portfolio.config import get_settings
+    from pathlib import Path
+
+    from portfolio.backup import safety_backup
     from portfolio.refresh import refresh_all
     from portfolio.store import Store
 
@@ -139,7 +142,8 @@ def main() -> int:
         print("Price fetching is turned off (PORTFOLIO_FETCH_PRICES=false).", file=sys.stderr)
         return 1
     try:
-        result = refresh_all(Store.from_url(settings.database_url))
+        result = refresh_all(Store.from_url(settings.database_url, before_upgrade=lambda path: safety_backup(
+            path, Path(settings.backup_dir), settings.backup_gpg_recipient)))
     except PriceFetchError as exc:
         print(exc, file=sys.stderr)
         return 1
