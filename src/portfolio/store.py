@@ -259,6 +259,16 @@ class Store:
                                .order_by(audit_log.c.id.desc()).limit(1)).mappings().first()
             return dict(row) if row else None
 
+    def price_sources(self) -> list[dict[str, Any]]:
+        """Per price source (AMFI, NSE, BSE): how many prices are stored, their newest and oldest date, and when
+        they were last fetched. Dates and counts only."""
+        from sqlalchemy import func
+        with self.engine.connect() as conn:
+            rows = conn.execute(select(prices.c.source, func.count(), func.max(prices.c.price_date),
+                                       func.min(prices.c.price_date), func.max(prices.c.fetched_at))
+                                .group_by(prices.c.source).order_by(prices.c.source))
+            return [{"source": r[0], "count": r[1], "newest": r[2], "oldest": r[3], "fetched_at": r[4]} for r in rows]
+
     def table_counts(self) -> dict[str, int]:
         """How many rows each kind of data has. Counts only, never content."""
         from sqlalchemy import func
