@@ -133,13 +133,16 @@ async function upload(event) {
 
 // ---- dashboard ----------------------------------------------------------------
 
+function tileEl(label, value, sub, cls) {
+  return el("div", { class: "tile" },
+    el("div", { class: "label" }, label),
+    el("div", { class: `value ${cls || ""}` }, value),
+    sub ? el("div", { class: `sub ${cls || ""}` }, sub) : null);
+}
+
 function renderTotals(p) {
   const t = p.totals;
-  const tile = (label, value, sub, cls) =>
-    el("div", { class: "tile" },
-      el("div", { class: "label" }, label),
-      el("div", { class: `value ${cls || ""}` }, value),
-      sub ? el("div", { class: `sub ${cls || ""}` }, sub) : null);
+  const tile = tileEl;
   const a = p.as_of;
   const range = !a ? null : a.from === a.to ? `as of ${day(a.to)}` : `${day(a.from)} to ${day(a.to)}`;
   const tiles = [tile("Total value", money(t.value), range)];
@@ -379,6 +382,41 @@ function renderAllocation(p) {
     const label = seg.firstElementChild;
     if (label && label.scrollWidth + 10 > seg.clientWidth) label.remove();
   }
+}
+
+// ---- concentration -------------------------------------------------------------------
+
+function renderConcentration(p) {
+  const c = p.concentration;
+  const section = document.getElementById("conc-section");
+  section.hidden = !c || c.positions < 3;  // with one or two positions there is nothing to be concentrated
+  if (section.hidden) return;
+  const pc = (n) => `${n.toFixed(1)}%`;
+  document.getElementById("conc-note").textContent =
+    "Worked out from statement values. A position is one ISIN, and a mutual fund or ETF counts as one position " +
+    "whatever it holds inside. Effective holdings means your money behaves as if it were spread evenly over that " +
+    "many positions: the lower it is compared with the real count, the more you rely on a few of them. " +
+    "Only single positions are flagged. A fund house is not a single point of failure the way a company is, " +
+    "because a fund's assets are held separately from its manager's own business.";
+  document.getElementById("conc-tiles").replaceChildren(
+    tileEl("Largest position", pc(c.largest.weight), c.largest.label),
+    tileEl("Top 5 positions", pc(c.top5)),
+    tileEl("Top 10 positions", pc(c.top10)),
+    tileEl("Effective holdings", c.effective_holdings.toFixed(1), `of ${c.positions} positions`));
+  const over = c.above_threshold;
+  const checks = over.length === 0
+    ? [[true, `No single position is above ${c.alert_pct}% of your portfolio.`]]
+    : [[false, `${over.length} position${over.length === 1 ? " is" : "s are"} above ${c.alert_pct}% of your portfolio.`,
+        over.map((r) => `${r.label} ${pc(r.weight)}`).join(" · ")]];
+  document.getElementById("conc-checks").replaceChildren(...checks.map(([ok, text, detail]) =>
+    el("li", { class: ok ? "ok" : "warn" },
+      el("span", { class: "mark", "aria-hidden": "true" }, ok ? "✓" : "!"),
+      el("div", null,
+        el("span", { class: "sr-only" }, ok ? "OK: " : "Needs attention: "), text,
+        detail ? el("div", { class: "detail" }, detail) : null))));
+  document.getElementById("conc-cards").replaceChildren(
+    allocationCard(`Top ${c.top_positions.length} positions`, c.top_positions, false),
+    allocationCard("Largest issuers and fund houses", c.top_issuers, false));
 }
 
 // A holding's value at its latest public price. No price found: a dash, never an estimate.
@@ -629,6 +667,7 @@ async function load() {
     renderHistory(history.points);
     setupChanges(history.points);
     renderAllocation(portfolio);
+    renderConcentration(portfolio);
     renderFunds(portfolio);
     renderStocks(portfolio);
     renderStatements(statements.statements);

@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     max_upload_mb: int = 20
     # Statements older than this are flagged on the dashboard.
     stale_after_days: int = 45
+    # A position bigger than this share of the portfolio is listed under Concentration.
+    concentration_alert_pct: float = 10
     # Allow downloading AMFI's public NAV file when you click Refresh. The only outbound request
     # the app makes; it sends nothing about your holdings.
     fetch_prices: bool = True

@@ -17,7 +17,7 @@ from datetime import date, datetime, timezone
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
-from portfolio.importers.cas import TOLERANCE, broker_label
+from portfolio.importers.cas import TOLERANCE, amc_for, broker_label
 from portfolio.store import Store, as_utc, mf_holdings, statement_accounts, stock_holdings
 
 ZERO = Decimal(0)
@@ -47,6 +47,71 @@ def _statement_info(st: dict[str, Any] | None, today: date, stale_after_days: in
         "period_to": st["period_to"].isoformat(), "age_days": age, "stale": age > stale_after_days,
         "imported_at": as_utc(st["imported_at"]).isoformat(),
         "warnings": st["warnings"].split("\n") if st["warnings"] else [],
+    }
+
+
+TOP_POSITIONS = 10
+TOP_ISSUERS = 8
+
+
+def _issuer(isin: str, name: str, asset_type: str, amc: str | None = None) -> tuple[str, str | None]:
+    """Who stands behind a holding: (group key, fixed label or None to name it after its biggest member).
+
+    Shares and bonds of one company share the issuer part of the ISIN (INE + 4 characters), so they group
+    together. Government securities (IN0…) all belong to the government whatever their series. Funds group
+    by fund house. What a fund holds inside is not looked through."""
+    if isin.startswith("IN0"):
+        return "gov", "Government of India"
+    if isin.startswith("INF") or asset_type == "fund":
+        house = amc or amc_for(isin) or "Unknown fund house"
+        return f"amc:{house}", house
+    return f"co:{isin[:7]}", None
+
+
+def _concentration(stocks: list[dict[str, Any]], funds: list[dict[str, Any]], total: Decimal,
+                   alert_pct: Decimal) -> dict[str, Any] | None:
+    """How much of the portfolio sits in a few positions or a few issuers, on statement values.
+
+    A position is one ISIN: the same fund held in demat and in a folio counts once. The two sources
+    are already one statement each, so nothing is counted twice."""
+    if not total:
+        return None
+    positions: dict[str, dict[str, Any]] = {}
+    for h in stocks:
+        positions[h["isin"]] = {"label": h["name"], "value": h["value"],
+                                "issuer": _issuer(h["isin"], h["name"], h["asset_type"])}
+    for f in funds:
+        key = f["isin"] or f["scheme"]
+        if key in positions:
+            positions[key]["value"] += f["value"]
+        else:
+            positions[key] = {"label": f["scheme"], "value": f["value"],
+                              "issuer": _issuer(f["isin"] or "", f["scheme"], "fund", f["amc"])}
+    ranked = sorted(positions.values(), key=lambda p: p["value"], reverse=True)
+
+    def row(label: str, value: Decimal) -> dict[str, Any]:
+        return {"label": label, "value": value, "weight": _pct(value, total)}
+
+    def top(n: int) -> float | None:
+        return _pct(sum((p["value"] for p in ranked[:n]), ZERO), total)
+
+    groups: dict[str, dict[str, Any]] = {}
+    for p in ranked:  # biggest first, so a group is named after its biggest member
+        key, fixed = p["issuer"]
+        g = groups.setdefault(key, {"label": fixed or p["label"], "value": ZERO})
+        g["value"] += p["value"]
+    issuers = sorted(groups.values(), key=lambda g: g["value"], reverse=True)
+    hhi = sum(((p["value"] / total) ** 2 for p in ranked), ZERO)
+    return {
+        "positions": len(ranked),
+        "top1": top(1), "top5": top(5), "top10": top(10),
+        "largest": row(ranked[0]["label"], ranked[0]["value"]),
+        "effective_holdings": 1 / hhi if hhi else None,  # as if the money were spread evenly over this many
+        "alert_pct": alert_pct,
+        "above_threshold": [row(p["label"], p["value"]) for p in ranked if p["value"] / total * 100 > alert_pct],
+        "top_positions": [row(p["label"], p["value"]) for p in ranked[:TOP_POSITIONS]],
+        "top_issuers": [row(g["label"], g["value"]) for g in issuers[:TOP_ISSUERS]],
+        "largest_issuer": row(issuers[0]["label"], issuers[0]["value"]),
     }
 
 
@@ -256,13 +321,13 @@ def _jsonable(value: Any) -> Any:
 
 
 def build_view(store: Store, stale_after_days: int = 45, today: date | None = None,
-               as_of: date | None = None) -> dict[str, Any]:
+               as_of: date | None = None, concentration_alert_pct: Decimal | float = 10) -> dict[str, Any]:
     """The dashboard as JSON-ready data (money as floats)."""
-    return _jsonable(compute_view(store, stale_after_days, today, as_of))
+    return _jsonable(compute_view(store, stale_after_days, today, as_of, concentration_alert_pct))
 
 
 def compute_view(store: Store, stale_after_days: int = 45, today: date | None = None,
-                 as_of: date | None = None) -> dict[str, Any]:
+                 as_of: date | None = None, concentration_alert_pct: Decimal | float = 10) -> dict[str, Any]:
     """The dashboard with money still as Decimal, for further calculation.
 
     With as_of, the same rules applied to the statements that existed on that date."""
@@ -322,6 +387,7 @@ def compute_view(store: Store, stale_after_days: int = 45, today: date | None = 
         },
         "as_of": _as_of(demat, mf),
         "completeness": _completeness(store, demat, stocks, funds),
+        "concentration": _concentration(stocks, funds, total, Decimal(str(concentration_alert_pct))),
         "statements": {
             "demat": _statement_info(demat, today, stale_after_days),
             "mf": _statement_info(mf, today, stale_after_days),
