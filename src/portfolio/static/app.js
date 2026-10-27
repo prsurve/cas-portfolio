@@ -153,6 +153,11 @@ function renderTotals(p) {
       tiles.push(tile("Mutual fund gain", money(t.mf_gain), pct(t.mf_gain_pct), signClass(t.mf_gain)));
     }
   }
+  if (t.mf_latest) {
+    const m = t.mf_latest;
+    tiles.push(tile("Funds at latest NAV", money(m.value), `${m.priced} of ${m.total} funds, NAV ${day(m.as_of)}`));
+    tiles.push(tile("Change since statement", money(m.change), pct(m.change_pct), signClass(m.change)));
+  }
   document.getElementById("totals").replaceChildren(...tiles);
 }
 
@@ -221,6 +226,10 @@ function completenessChecks(c) {
     const f = c.funds;
     checks.push([f.without_cost === 0, f.without_cost === 0 ? `All ${plural(f.count, "fund")} have a purchase cost.`
       : `${f.without_cost} of ${plural(f.count, "fund")} ${f.without_cost === 1 ? "has" : "have"} no purchase cost, so no gain is shown for ${f.without_cost === 1 ? "it" : "them"}.`]);
+    checks.push([f.without_price === 0, f.without_price === 0 ? `Every fund has a latest NAV.`
+      : f.priced === 0 ? "No latest NAVs yet."
+      : `${f.without_price} of ${plural(f.count, "fund")} ${f.without_price === 1 ? "has" : "have"} no NAV newer than the statement.`,
+      f.without_price === 0 ? null : "Use Refresh NAVs. A fund AMFI does not list stays at its statement value and shows a dash."]);
     if (f.unknown_amc) checks.push([false, `${plural(f.unknown_amc, "fund")} ${f.unknown_amc === 1 ? "has" : "have"} no fund house name.`]);
     const h = f.history;
     if (h.unknown) {
@@ -329,6 +338,34 @@ function renderAllocation(p) {
             el("td", { class: "num" }, `${r.weight.toFixed(1)}%`))))))));
 }
 
+// A fund's value at its latest public NAV. No NAV found: a dash, never an estimate.
+function latestCell(l) {
+  if (!l) return el("td", { class: "num" }, "–");
+  return el("td", { class: "num" },
+    money(l.value),
+    el("div", { class: signClass(l.change) }, `${money(l.change)} ${pct(l.change_pct)}`),
+    el("div", { class: l.stale ? "subtle loss" : "subtle" },
+      `NAV ${price(l.nav)} · ${day(l.nav_date)}${l.stale ? " (old)" : ""}`));
+}
+
+async function refreshPrices() {
+  const btn = document.getElementById("refresh-prices"), status = document.getElementById("refresh-status");
+  btn.disabled = true;
+  status.className = "subtle";
+  status.textContent = "Downloading…";
+  try {
+    const r = await api("/api/prices/refresh", { method: "POST" });
+    status.textContent = r.held === 0 ? "No funds to price."
+      : `Updated ${r.priced} of ${r.held} funds` + (r.latest_date ? ` (newest NAV ${day(r.latest_date)}).` : ".");
+    await load();
+  } catch (err) {
+    status.className = "subtle loss";
+    status.textContent = err.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 function renderFunds(p) {
   document.getElementById("funds-section").hidden = p.funds.length === 0;
   if (p.statements.mf) {
@@ -344,13 +381,14 @@ function renderFunds(p) {
     el("td", { class: "num" }, money(f.cost)),
     el("td", { class: "num" }, money(f.value)),
     el("td", { class: `num ${signClass(f.gain)}` }, money(f.gain), el("div", { class: "subtle" }, pct(f.gain_pct))),
+    latestCell(f.latest),
   ], f.folios.map((x) => el("tr", null,
     el("td", null, `Folio ${x.folio}`),
     el("td", { class: "num" }, qtyFmt.format(x.units)),
     el("td"),
     el("td", { class: "num" }, money(x.cost)),
     el("td", { class: "num" }, money(x.value)),
-    el("td")))));
+    el("td"), el("td")))));
   document.querySelector("#funds tbody").replaceChildren(...rows);
 }
 
@@ -453,6 +491,7 @@ async function removeStatement(s) {
   await load();
 }
 
+document.getElementById("refresh-prices").addEventListener("click", refreshPrices);
 document.getElementById("chg-from").addEventListener("change", loadChanges);
 document.getElementById("chg-to").addEventListener("change", loadChanges);
 document.getElementById("upload-form").addEventListener("submit", upload);

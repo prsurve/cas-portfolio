@@ -36,6 +36,7 @@ There is no `--reload`, so restart the server after code changes.
 | `src/portfolio/importers/cas.py` | Parses PDFs via `casparser` into `ParsedStatement`. Also holds the CLI, `diagnose`, ISIN enrichment, broker/AMC mapping and `PARSER_VERSION` |
 | `src/portfolio/store.py` | SQLAlchemy Core schema plus a tiny `_migrate()` that adds columns; SQLite now, Postgres-compatible |
 | `src/portfolio/portfolio_view.py` | Dashboard: `compute_view()` (Decimal) and `build_view()` (JSON floats): merges by ISIN or scheme, computes totals and allocation, picks the fund source |
+| `src/portfolio/prices.py` | AMFI `NAVAll.txt`: pure parser, fixed-URL fetcher (the app's only outbound request), `refresh_nav()` (stores only held ISINs, newest price), CLI |
 | `src/portfolio/changes.py` | `compare()`: what differs between two statement dates (two `compute_view(as_of=…)` results). Each change splits into a quantity effect and a price effect that sum exactly to the value change |
 | `src/portfolio/history.py` | `value_history()`: one point per statement date, each built with `build_view(as_of=…)` so the no-double-count rules hold |
 | `src/portfolio/app.py` | FastAPI: `POST/GET/DELETE /api/statements`, `GET /api/portfolio`, `GET /api/history`, `GET /api/changes`, static page |
@@ -53,11 +54,12 @@ There is no `--reload`, so restart the server after code changes.
   - The total can still mix dates, because stocks and funds may come from statements of different dates. `as_of` in the view gives the range, and `mixed` is true when the two are more than `MIXED_DATES_AFTER_DAYS` (7) apart. The total tile shows the range and an alert appears when it is mixed.
 - **Broker names** shown on the page come from the DP name printed on the statement (`broker_label()` in `cas.py`: legal suffixes dropped, case tidied), so any broker works with no list to maintain. The stored `broker` key from `BROKER_PATTERNS` is no longer used for display.
 - **Merge keys:** demat holdings merge by ISIN across accounts; funds merge by ISIN, falling back to scheme name, across folios.
-- **Money:** always `Decimal`, converted to float only in `_jsonable`. Statement values are as of the statement date; there are no live prices.
+- **Money:** always `Decimal`, converted to float only in `_jsonable`. Statement values are as of the statement date. Latest prices are shown beside them, never mixed into the statement-based total.
   - **Storage:** use the `Money` column type (`money.py`) for amounts and quantities. On SQLite it stores integer millionths, because a NUMERIC column would store a float. Older databases are converted once on open (`PRAGMA user_version` 0 → 1). Values that need more than 6 decimals or exceed ~9.2 trillion are not supported on SQLite.
 - **Fund gains:** computed only over funds that have a cost (`costed_value - cost`). Funds without cost are counted in `mf_without_cost`.
 - **Re-imports:** the same file hash is a no-op unless it was stored with an older `PARSER_VERSION`, in which case it is replaced. **Bump `PARSER_VERSION` whenever parsing changes what gets imported**, otherwise re-uploads are silently ignored.
 - **Reconciliation is stored.** `statement_accounts` holds, per statement, the total printed for each demat account and for the "Mutual Fund Folios" section against what was read (`reconciliation_rows()` in `cas.py`). `compute_view()` turns it into `completeness` (accounts that don't add up, funds without cost or AMC, funds whose transaction history is incomplete or missing, stocks without an NSE symbol). Statements imported before parser version 6 have no rows, and the page says to re-upload the PDF.
+- **Prices (AMFI).** `NAVAll.txt` has 8 columns (code; ISIN payout/growth; ISIN reinvestment; name; plan; option; NAV; date). The ISIN can be in either ISIN column, some values are `-`, `Redeemed` or have trailing spaces, rows with NAV 0 are dropped, and matured funds can share an ISIN (latest date wins; same date with different NAVs is dropped). A NAV is used only if it is at least as new as the statement's own valuation date, and only on today's dashboard, never in `as_of` views. A fund without a usable NAV shows a dash and is never estimated. Fetching can be turned off with `PORTFOLIO_FETCH_PRICES=false`. Demat-held ETFs trade at market price, so AMFI NAVs are not applied to them.
 - **Stored identifiers:** only the last 4 characters of folio and client IDs (`mask_id`). No PAN, name, address, phone or email.
 - **Uploads:** the PDF is read in memory (`io.BytesIO`) and never written to disk. The password arrives in the `X-PDF-Password` header and is used only to open the file.
 - **Passwords:** tried as typed, then in capitals (NSDL/CDSL use the PAN in capitals; CAMS uses whatever password the user chose).
@@ -87,7 +89,7 @@ There is no `--reload`, so restart the server after code changes.
 
 Rough priority order:
 
-1. **Prices between statements.** Revalue holdings daily from public end-of-day data: AMFI `NAVAll.txt` for funds, and the NSE/BSE bhavcopy for stocks, ETFs and SGBs. Show "statement value" next to "latest value".
+1. **Prices between statements.** Funds are done (AMFI `NAVAll.txt`, `prices.py`). Still open: the NSE/BSE bhavcopy for stocks, ETFs and SGBs, matched by ISIN. NSE may refuse non-browser requests; if so use BSE or a manual upload, and don't add workarounds.
 2. **Performance over time.** Done: total value per statement date (`/api/history`, SVG chart). Still open: growth by asset class, and returns (the chart is value held, so it rises with new money too).
 3. **Mutual fund XIRR and realized gains** from `mf_transactions`. This needs a CAMS/KFintech detailed statement; the CDSL folio section has no transactions.
 4. **Stock purchase cost.** NSDL/CDSL has none. Options: import broker holdings or tradebook CSV exports (Zerodha Console, Upstox, HDFC Securities) to get average cost and stock P&L.

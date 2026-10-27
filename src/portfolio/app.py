@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import date
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
@@ -21,6 +21,7 @@ from portfolio.importers.cas import PARSER_VERSION, CasImportError, parse_pdf_by
 from portfolio.changes import compare
 from portfolio.history import value_history
 from portfolio.portfolio_view import build_view
+from portfolio.prices import PriceFetchError, fetch_navall, refresh_nav
 from portfolio.store import Store, as_utc
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -35,7 +36,8 @@ SECURITY_HEADERS = {
 }
 
 
-def create_app(settings: Settings | None = None, store: Store | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, store: Store | None = None,
+               nav_fetcher: Callable[[], str] | None = None) -> FastAPI:
     settings = settings or get_settings()
     if store is None:
         if settings.database_url.startswith("sqlite:///./"):
@@ -114,6 +116,19 @@ def create_app(settings: Settings | None = None, store: Store | None = None) -> 
     @app.get("/api/history")
     def history() -> dict[str, Any]:
         return {"points": value_history(store)}
+
+    @app.post("/api/prices/refresh")
+    async def refresh_prices() -> dict[str, Any]:
+        """Download AMFI's public NAV file and store the latest NAV for the funds you hold."""
+        if not settings.fetch_prices:
+            raise HTTPException(403, "Price fetching is turned off (PORTFOLIO_FETCH_PRICES=false).")
+        try:
+            report = await run_in_threadpool(refresh_nav, store, nav_fetcher or fetch_navall)
+        except PriceFetchError as exc:
+            store.audit("prices_failed", "AMFI")
+            raise HTTPException(502, str(exc)) from exc
+        store.audit("prices_refreshed", f"AMFI priced {report['priced']} of {report['held']}")
+        return report
 
     @app.get("/api/changes")
     def changes(from_date: date | None = None, to_date: date | None = None) -> dict[str, Any]:

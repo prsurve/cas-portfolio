@@ -118,6 +118,17 @@ statement_accounts = Table(
     Column("imported_value", NUM, nullable=False),
 )
 
+# The latest public price per held instrument and source (for now: AMFI NAV by fund ISIN).
+# Only ISINs you hold are kept, and only the newest price: this is not a price history.
+prices = Table(
+    "prices", metadata,
+    Column("isin", String(12), primary_key=True),
+    Column("source", String(16), primary_key=True),
+    Column("price", NUM, nullable=False),
+    Column("price_date", Date, nullable=False),
+    Column("fetched_at", DateTime(timezone=True), nullable=False),
+)
+
 audit_log = Table(
     "audit_log", metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),
@@ -255,6 +266,28 @@ class Store:
         with self.engine.connect() as conn:
             rows = conn.execute(select(statements.c.period_to).distinct().order_by(statements.c.period_to))
             return [r[0] for r in rows]
+
+    def held_fund_isins(self) -> set[str]:
+        """Every mutual fund ISIN in any stored statement."""
+        with self.engine.connect() as conn:
+            return {r[0] for r in conn.execute(select(mf_holdings.c.isin).distinct()) if r[0]}
+
+    def save_prices(self, source: str, found: dict[str, tuple[Any, date]]) -> None:
+        """Replace the stored price for each ISIN: {isin: (price, price_date)}."""
+        now = utcnow()
+        with self.engine.begin() as conn:
+            if found:
+                conn.execute(delete(prices).where(prices.c.source == source, prices.c.isin.in_(list(found))))
+                conn.execute(insert(prices), [
+                    {"isin": isin, "source": source, "price": price, "price_date": day, "fetched_at": now}
+                    for isin, (price, day) in found.items()])
+
+    def prices_for(self, isins: list[str], source: str) -> dict[str, dict[str, Any]]:
+        if not isins:
+            return {}
+        with self.engine.connect() as conn:
+            rows = conn.execute(select(prices).where(prices.c.source == source, prices.c.isin.in_(isins))).mappings()
+            return {r["isin"]: dict(r) for r in rows}
 
     def rows_for(self, table: Table, statement_id: int) -> list[dict[str, Any]]:
         with self.engine.connect() as conn:
