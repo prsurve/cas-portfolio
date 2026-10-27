@@ -90,3 +90,9 @@ caption { text-align: left; font-weight: 600; font-size: 0.8rem; color: var(--mu
 .chart .grid { stroke: var(--border); stroke-width: 1; }
 .chart text { fill: var(--muted); font-size: 11px; }
 .chart-card .table-wrap { margin-top: 12px; border: 0; }
+
+.controls { display: flex; flex-wrap: wrap; gap: 12px; margin: 10px 0; font-size: 0.875rem; color: var(--muted); }
+.controls label { display: flex; gap: 6px; align-items: center; }
+.controls select { font: inherit; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); }
+#changes-summary { margin: 4px 0 10px; font-size: 0.875rem; }
+#changes-warnings .alert { background: var(--warn-bg); color: var(--warn); padding: 10px 14px; border-radius: 6px; margin-bottom: 8px; font-size: 0.9rem; }

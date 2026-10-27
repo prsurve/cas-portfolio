@@ -144,7 +144,15 @@ def _jsonable(value: Any) -> Any:
 
 def build_view(store: Store, stale_after_days: int = 45, today: date | None = None,
                as_of: date | None = None) -> dict[str, Any]:
-    """The dashboard. With as_of, the same rules applied to the statements that existed on that date."""
+    """The dashboard as JSON-ready data (money as floats)."""
+    return _jsonable(compute_view(store, stale_after_days, today, as_of))
+
+
+def compute_view(store: Store, stale_after_days: int = 45, today: date | None = None,
+                 as_of: date | None = None) -> dict[str, Any]:
+    """The dashboard with money still as Decimal, for further calculation.
+
+    With as_of, the same rules applied to the statements that existed on that date."""
     today = today or datetime.now(timezone.utc).date()
     demat = store.latest_statement("demat", as_of)
     candidates = [s for s in (store.latest_statement("mf", as_of), demat) if s]
@@ -171,7 +179,7 @@ def build_view(store: Store, stale_after_days: int = 45, today: date | None = No
         by_type[(f["scheme_type"] or "Other").title()] += f["value"]
 
     mf_gain = fund_totals["costed_value"] - fund_totals["cost"]
-    return _jsonable({
+    return {
         "totals": {
             "value": total,
             "demat_value": demat_value,
@@ -204,4 +212,4 @@ def build_view(store: Store, stale_after_days: int = 45, today: date | None = No
         },
         "stocks": stocks,
         "funds": funds,
-    })
+    }

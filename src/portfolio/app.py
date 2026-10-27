@@ -7,6 +7,7 @@ Run (bind to localhost; expose only through Cloudflare Tunnel + Access):
 
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +18,7 @@ from fastapi.staticfiles import StaticFiles
 
 from portfolio.config import Settings, get_settings
 from portfolio.importers.cas import PARSER_VERSION, CasImportError, parse_pdf_bytes, save, sha256, summary
+from portfolio.changes import compare
 from portfolio.history import value_history
 from portfolio.portfolio_view import build_view
 from portfolio.store import Store, as_utc
@@ -112,5 +114,20 @@ def create_app(settings: Settings | None = None, store: Store | None = None) -> 
     @app.get("/api/history")
     def history() -> dict[str, Any]:
         return {"points": value_history(store)}
+
+    @app.get("/api/changes")
+    def changes(from_date: date | None = None, to_date: date | None = None) -> dict[str, Any]:
+        """Holdings that differ between two statement dates (default: the two latest)."""
+        if (from_date is None) != (to_date is None):
+            raise HTTPException(400, "Give both dates, or neither.")
+        if from_date is None:
+            dates = store.statement_dates()
+            if len(dates) < 2:
+                raise HTTPException(400, "Upload at least two statements to compare.")
+            from_date, to_date = dates[-2], dates[-1]
+        try:
+            return compare(store, from_date, to_date)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
 
     return app

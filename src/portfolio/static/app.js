@@ -190,6 +190,68 @@ function renderHistory(points) {
       p.mixed ? `Stocks and funds are ${p.spread_days} days apart` : p.mf_source ? `Funds from ${ISSUERS[p.mf_source]}` : ""))));
 }
 
+// ---- changes between statements ---------------------------------------------------
+
+const CHANGE_KINDS = { new: "New", exited: "Sold out", more: "Bought more", less: "Sold some", price: "Price only" };
+
+function setupChanges(points) {
+  document.getElementById("changes-section").hidden = points.length < 2;
+  if (points.length < 2) return;
+  const from = document.getElementById("chg-from"), to = document.getElementById("chg-to");
+  const keep = [from.value, to.value];
+  const fill = (select, wanted) => {
+    select.replaceChildren(...points.map((pt) => el("option", { value: pt.date }, day(pt.date))));
+    select.value = points.some((pt) => pt.date === wanted) ? wanted : "";
+  };
+  fill(from, keep[0] || points[points.length - 2].date);
+  fill(to, keep[1] || points[points.length - 1].date);
+  if (!from.value) from.value = points[points.length - 2].date;
+  if (!to.value) to.value = points[points.length - 1].date;
+  loadChanges();
+}
+
+async function loadChanges() {
+  const from = document.getElementById("chg-from").value, to = document.getElementById("chg-to").value;
+  const tbody = document.querySelector("#changes tbody");
+  if (from >= to) {
+    document.getElementById("changes-summary").textContent = "Choose an earlier date on the left and a later one on the right.";
+    document.getElementById("changes-warnings").replaceChildren();
+    tbody.replaceChildren();
+    return;
+  }
+  try {
+    renderChanges(await api(`/api/changes?from_date=${from}&to_date=${to}`));
+  } catch (err) {
+    document.getElementById("changes-summary").textContent = `Could not compare: ${err.message}`;
+  }
+}
+
+function renderChanges(r) {
+  const t = r.demat.totals, f = r.funds.totals;
+  const change = t.change + f.change;
+  const qty = t.quantity_effect + f.quantity_effect, prc = t.price_effect + f.price_effect;
+  document.getElementById("changes-summary").replaceChildren(
+    `${day(r.from)} to ${day(r.to)}: your holdings moved by `,
+    el("strong", { class: signClass(change) }, money(change)),
+    `. Buying and selling account for ${money(qty)}, price moves for ${money(prc)}.`);
+  document.getElementById("changes-warnings").replaceChildren(...r.warnings.map((w) => el("div", { class: "alert" }, w)));
+  const rows = [
+    ...r.demat.changes.map((c) => ({ ...c, group: "Demat" })),
+    ...r.funds.changes.map((c) => ({ ...c, group: "Mutual fund folio" })),
+  ];
+  const body = rows.map((c) => el("tr", null,
+    el("td", null, el("div", { class: "symbol" }, c.name),
+      el("div", { class: "subtle" }, [c.group, c.isin].filter(Boolean).join(" · "))),
+    el("td", null, CHANGE_KINDS[c.kind] || c.kind),
+    el("td", { class: "num" }, `${qtyFmt.format(c.quantity_before)} → ${qtyFmt.format(c.quantity_after)}`),
+    el("td", { class: "num" }, money(c.value_before)),
+    el("td", { class: "num" }, money(c.value_after)),
+    el("td", { class: `num ${signClass(c.quantity_effect)}` }, money(c.quantity_effect)),
+    el("td", { class: `num ${signClass(c.price_effect)}` }, money(c.price_effect))));
+  if (body.length === 0) body.push(el("tr", null, el("td", { colspan: "7", class: "empty" }, "No holding changed between these dates.")));
+  document.querySelector("#changes tbody").replaceChildren(...body);
+}
+
 function renderAllocation(p) {
   const a = p.allocation;
   const groups = [
@@ -313,6 +375,7 @@ async function load() {
     lastPortfolio = portfolio;
     renderTotals(portfolio);
     renderHistory(history.points);
+    setupChanges(history.points);
     renderAllocation(portfolio);
     renderFunds(portfolio);
     renderStocks(portfolio);
@@ -333,6 +396,8 @@ async function removeStatement(s) {
   await load();
 }
 
+document.getElementById("chg-from").addEventListener("change", loadChanges);
+document.getElementById("chg-to").addEventListener("change", loadChanges);
 document.getElementById("upload-form").addEventListener("submit", upload);
 document.getElementById("multi-only").addEventListener("change", () => lastPortfolio && renderStocks(lastPortfolio));
 load();

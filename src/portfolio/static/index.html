@@ -65,6 +65,37 @@
     </div>
   </section>
 
+  <section aria-labelledby="changes-h" id="changes-section" hidden>
+    <h2 id="changes-h">What changed between statements</h2>
+    <p class="subtle">
+      Compares your holdings on two statement dates. Each change in value is split into what came from
+      holding more or less (bought or sold) and what came from price moves. This is worked out from
+      statement values, not from your trades.
+    </p>
+    <div class="controls">
+      <label>From <select id="chg-from"></select></label>
+      <label>To <select id="chg-to"></select></label>
+    </div>
+    <div id="changes-summary" class="subtle"></div>
+    <div id="changes-warnings"></div>
+    <div class="table-wrap">
+      <table id="changes">
+        <thead>
+          <tr>
+            <th scope="col">Holding</th>
+            <th scope="col">Change</th>
+            <th scope="col" class="num">Quantity</th>
+            <th scope="col" class="num">Value before</th>
+            <th scope="col" class="num">Value after</th>
+            <th scope="col" class="num">Buying or selling</th>
+            <th scope="col" class="num">Price moves</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
   <section aria-labelledby="alloc-h" id="alloc-section" hidden>
     <h2 id="alloc-h">Allocation</h2>
     <div id="allocation" class="alloc-grid"></div>
