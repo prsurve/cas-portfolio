@@ -17,16 +17,13 @@ from datetime import date, datetime, timezone
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
+from portfolio.importers.cas import broker_label
 from portfolio.store import Store, as_utc, mf_holdings, stock_holdings
 
 ZERO = Decimal(0)
 # The total adds stocks and funds from possibly different statements. Beyond this
 # many days apart, the dashboard warns that the total mixes dates.
 MIXED_DATES_AFTER_DAYS = 7
-BROKER_LABELS = {
-    "zerodha": "Zerodha", "upstox": "Upstox", "hdfc": "HDFC Securities", "sharekhan": "Sharekhan",
-    "groww": "Groww", "angelone": "Angel One", "axis": "Axis Securities",
-}
 ASSET_LABELS = {"equity": "Stocks", "fund": "ETFs & demat funds", "bond": "Bonds & SGBs"}
 
 
@@ -76,11 +73,11 @@ def _stocks(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], Decimal]:
             "quantity": qty,
             "price": value / qty if qty else None,
             "value": value,
-            "brokers": sorted({m["broker"] or "unknown" for m in members}),
+            "brokers": sorted({broker_label(m["dp_name"]) for m in members}),
             "accounts": [
-                {"broker": m["broker"] or "unknown", "dp_name": m["dp_name"], "client": m["client_id_masked"],
+                {"label": broker_label(m["dp_name"]), "dp_name": m["dp_name"], "client": m["client_id_masked"],
                  "depository": m["depository"], "quantity": Decimal(m["quantity"]), "value": Decimal(m["value"] or 0)}
-                for m in sorted(members, key=lambda m: (m["broker"] or "", m["client_id_masked"] or ""))
+                for m in sorted(members, key=lambda m: (broker_label(m["dp_name"]), m["client_id_masked"] or ""))
             ],
         })
     out.sort(key=lambda h: h["value"], reverse=True)
@@ -164,7 +161,7 @@ def build_view(store: Store, stale_after_days: int = 45, today: date | None = No
     by_broker: dict[str, Decimal] = defaultdict(lambda: ZERO)
     for h in stocks:
         for a in h["accounts"]:
-            by_broker[BROKER_LABELS.get(a["broker"], a["dp_name"] or "Unknown")] += a["value"]
+            by_broker[a["label"]] += a["value"]
     by_amc: dict[str, Decimal] = defaultdict(lambda: ZERO)
     by_type: dict[str, Decimal] = defaultdict(lambda: ZERO)
     for f in funds:

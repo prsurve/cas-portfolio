@@ -28,10 +28,6 @@ const price = (n) => (n === null || n === undefined ? "–" : inr2.format(n));
 const pct = (n) => (n === null || n === undefined ? "" : `${pctFmt.format(n)}%`);
 const day = (iso) => (iso ? dateFmt.format(new Date(`${iso.slice(0, 10)}T00:00:00`)) : "–");
 const ISSUERS = { CAMS: "CAMS", KFINTECH: "KFintech", NSDL: "NSDL", CDSL: "CDSL" };
-const BROKERS = {
-  zerodha: "Zerodha", upstox: "Upstox", hdfc: "HDFC", sharekhan: "Sharekhan",
-  groww: "Groww", angelone: "Angel One", axis: "Axis", unknown: "Unknown",
-};
 const ASSET_TYPES = { equity: "Stock", fund: "ETF/Fund", bond: "Bond" };
 
 async function api(path, options = {}) {
@@ -81,7 +77,7 @@ function renderUploadResult(r) {
     lines.push(el("ul", null, r.accounts.map((a) => {
       const ok = Math.abs(a.gap) <= 1;
       return el("li", { class: ok ? "" : "loss" },
-        `${BROKERS[a.broker] || a.dp_name} ${a.client} (${a.depository}): read ${money(a.imported_value)}` +
+        `${a.label} ${a.client} (${a.depository}): read ${money(a.imported_value)}` +
         ` of statement total ${money(a.statement_total)}` + (ok ? " ✓" : ` · ${money(a.gap)} missing`));
     })));
     if (r.folio_funds) {
@@ -209,9 +205,9 @@ function renderStocks(p) {
     el("td", { class: "num" }, price(h.price)),
     el("td", { class: "num" }, money(h.value)),
     el("td", { class: "num" }, total ? `${((h.value / total) * 100).toFixed(1)}%` : "–"),
-    el("td", null, h.brokers.map((b) => el("span", { class: "chip" }, BROKERS[b] || b))),
+    el("td", null, h.brokers.map((b) => el("span", { class: "chip" }, b))),
   ], h.accounts.map((a) => el("tr", null,
-    el("td", null, `${BROKERS[a.broker] || a.dp_name} ${a.client} · ${a.depository}`),
+    el("td", null, `${a.label} ${a.client} · ${a.depository}`),
     el("td", { class: "num" }, qtyFmt.format(a.quantity)),
     el("td"),
     el("td", { class: "num" }, money(a.value)),

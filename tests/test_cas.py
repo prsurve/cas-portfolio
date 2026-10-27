@@ -74,7 +74,7 @@ def test_demat_statement_parsed(demat_data):
     assert st.warnings == []  # every account adds up
     notes = " ".join(st.notes)
     assert "Imported 2 mutual fund holding(s) in 2 folio(s)" in notes
-    assert "Unknown broker for: SOME OTHER DP LTD" in notes
+    assert "Unknown broker" not in notes  # the DP name from the statement is the label; nothing to report
 
 
 def test_account_gap_is_reported(demat_data):
@@ -496,3 +496,25 @@ def test_history_columns_round_trip_and_migrate(tmp_path, mf_data):
     sid, _ = cas.save(store, cas.from_mf_data(mf_data), "new")
     flexi = next(r for r in store.rows_for(mf_holdings, sid) if r["units"] == D("100.5"))
     assert flexi["open_units"] == D(0) and flexi["history_from"] == date(2026, 4, 1)
+
+
+@pytest.mark.parametrize("dp_name,label", [
+    ("ZERODHA BROKING LIMITED", "Zerodha Broking"),
+    ("UPSTOX SECURITIES PRIVATE LIMITED", "Upstox Securities"),
+    ("HDFC SECURITIES LTD.", "HDFC Securities"),
+    ("HDFC BANK LIMITED", "HDFC Bank"),               # not confused with HDFC Securities
+    ("ICICI SECURITIES LIMITED", "ICICI Securities"),
+    ("SOME OTHER DP LTD", "Some Other DP"),
+    ("Angel One Limited", "Angel One"),               # already mixed case
+    ("SBI SECURITIES LTD", "SBI Securities"),
+    ("LIMITED", "LIMITED"),                           # nothing left after trimming: keep what was printed
+    ("", "Unknown"),
+    (None, "Unknown"),
+])
+def test_broker_label_comes_from_the_dp_name(dp_name, label):
+    assert cas.broker_label(dp_name) == label
+
+
+def test_summary_accounts_carry_the_label(demat_data):
+    accounts = cas.summary(cas.from_demat_data(demat_data))["accounts"]
+    assert [a["label"] for a in accounts] == ["Zerodha Broking", "Upstox Securities", "HDFC Bank", "Some Other DP"]
