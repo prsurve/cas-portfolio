@@ -220,15 +220,23 @@ function renderStocks(p) {
   document.querySelector("#stocks tbody").replaceChildren(...rows);
 }
 
+function statementStatus(s) {
+  const notes = [];
+  if (s.outdated) notes.push(el("div", { class: "loss" }, "Read by an older version. Upload this PDF again to refresh it."));
+  if (s.warnings.length) notes.push(el("div", { class: "loss" }, `${s.warnings.length} warning(s)`));
+  return notes.length ? notes : "OK";
+}
+
 function renderStatements(list) {
   const rows = list.map((s) => el("tr", null,
     el("td", null, ISSUERS[s.issuer] || s.issuer),
     el("td", null, s.kind === "mf" ? "Mutual funds" : "Stocks"),
     el("td", null, `${day(s.period_from)} – ${day(s.period_to)}`),
     el("td", null, day(s.imported_at)),
+    el("td", null, statementStatus(s)),
     el("td", { class: "num" }, el("button", { type: "button", onclick: () => removeStatement(s) }, "Delete"))));
   if (rows.length === 0) {
-    rows.push(el("tr", null, el("td", { colspan: "5", class: "empty" }, "Nothing imported yet. Upload a statement above.")));
+    rows.push(el("tr", null, el("td", { colspan: "6", class: "empty" }, "Nothing imported yet. Upload a statement above.")));
   }
   document.querySelector("#statements tbody").replaceChildren(...rows);
 }

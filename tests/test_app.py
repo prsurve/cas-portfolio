@@ -103,3 +103,56 @@ def test_page_and_security_headers(env):
     assert r.headers["referrer-policy"] == "no-referrer"
     assert "default-src 'self'" in r.headers["content-security-policy"]
     assert client.get("/static/app.js").status_code == 200
+
+
+def _audit_rows(store):
+    from sqlalchemy import select
+    from portfolio.store import audit_log
+    with store.engine.connect() as conn:
+        return [(r.event, r.detail) for r in conn.execute(select(audit_log))]
+
+
+def test_rejected_upload_audit_holds_a_code_not_the_message(env, monkeypatch):
+    client, store, _, _ = env
+    import portfolio.app as app_module
+
+    def boom(pdf, password):
+        raise cas.CasImportError("Could not read this statement: line says SENTINEL-STATEMENT-TEXT",
+                                 code="unreadable")
+
+    monkeypatch.setattr(app_module, "parse_pdf_bytes", boom)
+    r = client.post("/api/statements", content=PDF, headers=HEADERS)
+    assert r.status_code == 422 and "SENTINEL-STATEMENT-TEXT" in r.json()["detail"]  # the user still sees it
+    assert ("statement_rejected", "unreadable") in _audit_rows(store)
+    assert "SENTINEL" not in repr(_audit_rows(store))
+
+
+def test_import_errors_carry_codes(monkeypatch):
+    import casparser
+    from casparser.exceptions import IncorrectPasswordError, ParserException
+
+    def raising(exc):
+        def read(*a, **k):
+            raise exc
+        return read
+
+    for exc, code in [(IncorrectPasswordError("x"), "wrong_password"), (ParserException("x"), "unreadable"),
+                      (ValueError("x"), "not_pdf")]:
+        monkeypatch.setattr(casparser, "read_cas_pdf", raising(exc))
+        with pytest.raises(cas.CasImportError) as e:
+            cas.parse_pdf_bytes(b"%PDF", "pw")
+        assert e.value.code == code
+    assert cas.CasImportError("m").code == "import_error"
+
+
+def test_statement_list_flags_outdated_parser(env):
+    client, store, _, _ = env
+    client.post("/api/statements", content=PDF, headers=HEADERS)
+    [s] = client.get("/api/statements").json()["statements"]
+    assert s["parser_version"] == cas.PARSER_VERSION and s["outdated"] is False and s["warnings"] == []
+    from sqlalchemy import update
+    from portfolio.store import statements
+    with store.engine.begin() as conn:
+        conn.execute(update(statements).values(parser_version=cas.PARSER_VERSION - 1, warnings="a\nb"))
+    [s] = client.get("/api/statements").json()["statements"]
+    assert s["outdated"] is True and s["warnings"] == ["a", "b"]

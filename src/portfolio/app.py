@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from portfolio.config import Settings, get_settings
-from portfolio.importers.cas import CasImportError, parse_pdf_bytes, save, sha256, summary
+from portfolio.importers.cas import PARSER_VERSION, CasImportError, parse_pdf_bytes, save, sha256, summary
 from portfolio.portfolio_view import build_view
 from portfolio.store import Store, as_utc
 
@@ -75,7 +75,7 @@ def create_app(settings: Settings | None = None, store: Store | None = None) -> 
         try:
             parsed = await run_in_threadpool(parse_pdf_bytes, pdf, password)
         except CasImportError as exc:
-            store.audit("statement_rejected", str(exc)[:300])
+            store.audit("statement_rejected", exc.code)
             return JSONResponse({"detail": str(exc)}, status_code=422)
         statement_id, created = save(store, parsed, sha256(pdf))
         return JSONResponse({"id": statement_id, "created": created, **summary(parsed)},
@@ -89,6 +89,10 @@ def create_app(settings: Settings | None = None, store: Store | None = None) -> 
                 "period_from": s["period_from"].isoformat() if s["period_from"] else None,
                 "period_to": s["period_to"].isoformat(),
                 "imported_at": as_utc(s["imported_at"]).isoformat(),
+                "parser_version": s["parser_version"],
+                # Imported by an older parser: uploading the same PDF again would read more from it.
+                "outdated": s["parser_version"] < PARSER_VERSION,
+                "warnings": s["warnings"].split("\n") if s["warnings"] else [],
             }
             for s in store.list_statements()
         ]}
