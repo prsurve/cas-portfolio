@@ -377,13 +377,116 @@ async function refreshPrices() {
   }
 }
 
+// ---- search, sort and export for the holdings tables -------------------------------
+
+const Tools = window.PortfolioTools;
+const tableState = {
+  stocks: { query: "", type: "all", key: "value", dir: "desc" },
+  funds: { query: "", key: "value", dir: "desc" },
+};
+const STOCK_SORT = {
+  name: (h) => h.name, quantity: (h) => h.quantity, price: (h) => h.price, value: (h) => h.value,
+  latest: (h) => (h.latest ? h.latest.value : null), weight: (h) => h.value, brokers: (h) => h.brokers[0] || null,
+};
+const FUND_SORT = {
+  scheme: (f) => f.scheme, units: (f) => f.units, nav: (f) => f.nav, cost: (f) => f.cost, value: (f) => f.value,
+  gain: (f) => f.gain, latest: (f) => (f.latest ? f.latest.value : null),
+};
+
+function visibleStocks(p) {
+  const s = tableState.stocks;
+  const multiOnly = document.getElementById("multi-only").checked;
+  const list = p.stocks.filter((h) =>
+    (!multiOnly || h.accounts.length > 1) && (s.type === "all" || h.asset_type === s.type)
+    && Tools.matchesQuery([h.name, h.symbol, h.isin, ...h.brokers, ...h.accounts.map((a) => a.client)], s.query));
+  return Tools.sortRows(list, STOCK_SORT[s.key], s.dir);
+}
+
+function visibleFunds(p) {
+  const s = tableState.funds;
+  const list = p.funds.filter((f) =>
+    Tools.matchesQuery([f.scheme, f.amc, f.isin, f.scheme_type, ...f.folios.map((x) => x.folio)], s.query));
+  return Tools.sortRows(list, FUND_SORT[s.key], s.dir);
+}
+
+function showCount(id, shown, total, noun) {
+  document.getElementById(id).textContent = shown === total ? `${total} ${noun}` : `Showing ${shown} of ${total} ${noun}`;
+}
+
+// Header cells become buttons: click to sort, click again to reverse.
+function makeSortable(tableId, state, rerender) {
+  for (const th of document.querySelectorAll(`#${tableId} th[data-sort]`)) {
+    const key = th.dataset.sort;
+    th.replaceChildren(el("button", {
+      type: "button", class: "sort",
+      onclick: () => {
+        if (state.key === key) state.dir = state.dir === "asc" ? "desc" : "asc";
+        else { state.key = key; state.dir = th.classList.contains("num") ? "desc" : "asc"; }
+        rerender();
+      },
+    }, th.textContent.trim()));
+  }
+}
+
+function markSorted(tableId, state) {
+  for (const th of document.querySelectorAll(`#${tableId} th[data-sort]`)) {
+    const on = th.dataset.sort === state.key;
+    th.setAttribute("aria-sort", on ? (state.dir === "asc" ? "ascending" : "descending") : "none");
+    th.querySelector("button").dataset.arrow = on ? (state.dir === "asc" ? "▲" : "▼") : "";
+  }
+}
+
+const orNull = (l, field) => (l ? l[field] : null);
+const STOCK_CSV = [
+  { header: "Name", value: (h) => h.name },
+  { header: "Type", value: (h) => ASSET_TYPES[h.asset_type] || h.asset_type },
+  { header: "Symbol", value: (h) => h.symbol },
+  { header: "ISIN", value: (h) => h.isin },
+  { header: "Quantity", value: (h) => h.quantity },
+  { header: "Statement price", value: (h) => h.price },
+  { header: "Statement value", value: (h) => h.value },
+  { header: "Latest price", value: (h) => orNull(h.latest, "price") },
+  { header: "Latest value", value: (h) => orNull(h.latest, "value") },
+  { header: "Latest price date", value: (h) => orNull(h.latest, "price_date") },
+  { header: "Price source", value: (h) => orNull(h.latest, "source") },
+  { header: "Accounts", value: (h) => h.accounts.map((a) => `${a.label} ${a.client}`).join("; ") },
+];
+const FUND_CSV = [
+  { header: "Scheme", value: (f) => f.scheme },
+  { header: "Fund house", value: (f) => f.amc },
+  { header: "ISIN", value: (f) => f.isin },
+  { header: "Type", value: (f) => f.scheme_type },
+  { header: "Units", value: (f) => f.units },
+  { header: "Statement NAV", value: (f) => f.nav },
+  { header: "Statement NAV date", value: (f) => f.nav_date },
+  { header: "Invested", value: (f) => f.cost },
+  { header: "Statement value", value: (f) => f.value },
+  { header: "Gain", value: (f) => f.gain },
+  { header: "Latest NAV", value: (f) => orNull(f.latest, "price") },
+  { header: "Latest value", value: (f) => orNull(f.latest, "value") },
+  { header: "Latest NAV date", value: (f) => orNull(f.latest, "price_date") },
+  { header: "Folios", value: (f) => f.folios.map((x) => x.folio).join("; ") },
+];
+
+// Saves exactly what the table shows (filters and sort applied) as a file in the browser.
+// A byte-order mark makes Excel read it as UTF-8.
+function downloadCsv(filename, text) {
+  const url = URL.createObjectURL(new Blob(["\ufeff", text], { type: "text/csv;charset=utf-8" }));
+  const link = el("a", { href: url, download: filename });
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 function renderFunds(p) {
   document.getElementById("funds-section").hidden = p.funds.length === 0;
   if (p.statements.mf) {
     document.getElementById("funds-asof").textContent =
       `· ${ISSUERS[p.statements.mf.issuer]} statement to ${day(p.statements.mf.period_to)}`;
   }
-  const rows = p.funds.flatMap((f) => expandable([
+  const list = visibleFunds(p);
+  const rows = list.flatMap((f) => expandable([
     el("td", null, el("div", { class: "symbol" }, f.scheme),
       el("div", { class: "subtle" },
         [f.amc, f.scheme_type, `${f.folios.length} folio${f.folios.length > 1 ? "s" : ""}`].filter(Boolean).join(" · "))),
@@ -400,6 +503,11 @@ function renderFunds(p) {
     el("td", { class: "num" }, money(x.cost)),
     el("td", { class: "num" }, money(x.value)),
     el("td"), el("td")))));
+  if (rows.length === 0 && p.funds.length) {
+    rows.push(el("tr", null, el("td", { colspan: "7", class: "empty" }, "No fund matches the search.")));
+  }
+  showCount("funds-count", list.length, p.funds.length, "folio funds");
+  markSorted("funds", tableState.funds);
   document.querySelector("#funds tbody").replaceChildren(...rows);
 }
 
@@ -409,9 +517,8 @@ function renderStocks(p) {
     document.getElementById("stocks-asof").textContent =
       `· ${ISSUERS[p.statements.demat.issuer]} statement to ${day(p.statements.demat.period_to)}`;
   }
-  const multiOnly = document.getElementById("multi-only").checked;
   const total = p.totals.demat_value;
-  const list = p.stocks.filter((h) => !multiOnly || h.accounts.length > 1);
+  const list = visibleStocks(p);
   const rows = list.flatMap((h) => expandable([
     el("td", null, el("div", { class: "symbol" }, h.name),
       el("div", { class: "subtle" },
@@ -429,8 +536,10 @@ function renderStocks(p) {
     el("td", { class: "num" }, money(a.value)),
     el("td"), el("td"), el("td")))));
   if (rows.length === 0 && p.stocks.length) {
-    rows.push(el("tr", null, el("td", { colspan: "7", class: "empty" }, "No stock is held in more than one account.")));
+    rows.push(el("tr", null, el("td", { colspan: "7", class: "empty" }, "No holding matches the search and filters.")));
   }
+  showCount("stocks-count", list.length, p.stocks.length, "holdings");
+  markSorted("stocks", tableState.stocks);
   document.querySelector("#stocks tbody").replaceChildren(...rows);
 }
 
@@ -507,5 +616,20 @@ document.getElementById("refresh-prices").addEventListener("click", refreshPrice
 document.getElementById("chg-from").addEventListener("change", loadChanges);
 document.getElementById("chg-to").addEventListener("change", loadChanges);
 document.getElementById("upload-form").addEventListener("submit", upload);
-document.getElementById("multi-only").addEventListener("change", () => lastPortfolio && renderStocks(lastPortfolio));
+const rerenderStocks = () => lastPortfolio && renderStocks(lastPortfolio);
+const rerenderFunds = () => lastPortfolio && renderFunds(lastPortfolio);
+makeSortable("stocks", tableState.stocks, rerenderStocks);
+makeSortable("funds", tableState.funds, rerenderFunds);
+document.getElementById("multi-only").addEventListener("change", rerenderStocks);
+document.getElementById("stocks-q").addEventListener("input", (e) => { tableState.stocks.query = e.target.value; rerenderStocks(); });
+document.getElementById("stocks-type").addEventListener("change", (e) => { tableState.stocks.type = e.target.value; rerenderStocks(); });
+document.getElementById("funds-q").addEventListener("input", (e) => { tableState.funds.query = e.target.value; rerenderFunds(); });
+document.getElementById("stocks-csv").addEventListener("click", () => {
+  if (!lastPortfolio || !lastPortfolio.statements.demat) return;
+  downloadCsv(`demat-holdings-${lastPortfolio.statements.demat.period_to}.csv`, Tools.toCsv(STOCK_CSV, visibleStocks(lastPortfolio)));
+});
+document.getElementById("funds-csv").addEventListener("click", () => {
+  if (!lastPortfolio || !lastPortfolio.statements.mf) return;
+  downloadCsv(`mutual-funds-${lastPortfolio.statements.mf.period_to}.csv`, Tools.toCsv(FUND_CSV, visibleFunds(lastPortfolio)));
+});
 load();

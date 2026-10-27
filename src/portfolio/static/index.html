@@ -117,17 +117,22 @@
 
   <section aria-labelledby="funds-h" id="funds-section" hidden>
     <h2 id="funds-h">Mutual fund folios <span class="subtle" id="funds-asof"></span></h2>
+    <div class="toolbar">
+      <label>Search <input type="search" id="funds-q" placeholder="Scheme, fund house or ISIN" autocomplete="off"></label>
+      <button type="button" class="btn" id="funds-csv">Export CSV</button>
+      <span class="subtle" id="funds-count" role="status" aria-live="polite"></span>
+    </div>
     <div class="table-wrap">
       <table id="funds">
         <thead>
           <tr>
-            <th scope="col">Scheme</th>
-            <th scope="col" class="num">Units</th>
-            <th scope="col" class="num">NAV</th>
-            <th scope="col" class="num">Invested</th>
-            <th scope="col" class="num">Value</th>
-            <th scope="col" class="num">Gain</th>
-            <th scope="col" class="num">At latest NAV</th>
+            <th scope="col" data-sort="scheme">Scheme</th>
+            <th scope="col" class="num" data-sort="units">Units</th>
+            <th scope="col" class="num" data-sort="nav">NAV</th>
+            <th scope="col" class="num" data-sort="cost">Invested</th>
+            <th scope="col" class="num" data-sort="value">Value</th>
+            <th scope="col" class="num" data-sort="gain">Gain</th>
+            <th scope="col" class="num" data-sort="latest">At latest NAV</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -137,18 +142,31 @@
 
   <section aria-labelledby="stocks-h" id="stocks-section" hidden>
     <h2 id="stocks-h">Demat holdings <span class="subtle" id="stocks-asof"></span></h2>
-    <label class="filter"><input type="checkbox" id="multi-only"> Held in more than one demat account</label>
+    <div class="toolbar">
+      <label>Search <input type="search" id="stocks-q" placeholder="Name, symbol, ISIN or broker" autocomplete="off"></label>
+      <label>Type
+        <select id="stocks-type">
+          <option value="all">All</option>
+          <option value="equity">Stocks</option>
+          <option value="fund">ETFs &amp; funds</option>
+          <option value="bond">Bonds &amp; SGBs</option>
+        </select>
+      </label>
+      <label class="filter"><input type="checkbox" id="multi-only"> Held in more than one demat account</label>
+      <button type="button" class="btn" id="stocks-csv">Export CSV</button>
+      <span class="subtle" id="stocks-count" role="status" aria-live="polite"></span>
+    </div>
     <div class="table-wrap">
       <table id="stocks">
         <thead>
           <tr>
-            <th scope="col">Holding</th>
-            <th scope="col" class="num">Quantity</th>
-            <th scope="col" class="num">Price</th>
-            <th scope="col" class="num">Value</th>
-            <th scope="col" class="num">At latest price</th>
-            <th scope="col" class="num">Weight</th>
-            <th scope="col">Brokers</th>
+            <th scope="col" data-sort="name">Holding</th>
+            <th scope="col" class="num" data-sort="quantity">Quantity</th>
+            <th scope="col" class="num" data-sort="price">Price</th>
+            <th scope="col" class="num" data-sort="value">Value</th>
+            <th scope="col" class="num" data-sort="latest">At latest price</th>
+            <th scope="col" class="num" data-sort="weight">Weight</th>
+            <th scope="col" data-sort="brokers">Brokers</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -171,6 +189,7 @@
     </div>
   </section>
 
+  <script src="/static/tools.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

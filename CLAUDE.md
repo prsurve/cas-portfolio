@@ -44,7 +44,7 @@ There is no `--reload`, so restart the server after code changes. (Users of the 
 | `src/portfolio/changes.py` | `compare()`: what differs between two statement dates (two `compute_view(as_of=…)` results). Each change splits into a quantity effect and a price effect that sum exactly to the value change |
 | `src/portfolio/history.py` | `value_history()`: one point per statement date, each built with `build_view(as_of=…)` so the no-double-count rules hold |
 | `src/portfolio/app.py` | FastAPI: `POST/GET/DELETE /api/statements`, `GET /api/portfolio`, `GET /api/history`, `GET /api/changes`, `POST /api/prices/refresh`, `GET /healthz`, static page |
-| `src/portfolio/static/` | Vanilla JS/CSS page. DOM is built with `el()`; never use `innerHTML`, because the strict CSP blocks inline scripts |
+| `src/portfolio/static/` | Vanilla JS/CSS page. DOM is built with `el()`; never use `innerHTML`, because the strict CSP blocks inline scripts. `tools.js` holds the DOM-free search, sort and CSV helpers (tested with node: `tests/tools.test.js`); CSV text is guarded against spreadsheet formulas |
 | `tests/conftest.py` | Fixtures built from **casparser's own pydantic models** (`CASData`, `NSDLCASData`) |
 
 ## Data model and rules

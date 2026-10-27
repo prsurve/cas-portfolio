@@ -1,0 +1,54 @@
+"use strict";
+
+// Search, sort and CSV helpers for the holdings tables. Plain functions with no DOM access, so
+// tests/tools.test.js can run them in node. In the page they are exposed as PortfolioTools.
+(function (root) {
+  const isEmpty = (v) => v === null || v === undefined || v === "" || (typeof v === "number" && Number.isNaN(v));
+
+  // Every whitespace-separated term must appear (case-insensitively) in at least one field.
+  // Plain substring search: the query is never treated as a pattern.
+  function matchesQuery(fields, query) {
+    const terms = String(query || "").trim().toLowerCase().split(/\s+/).filter(Boolean);
+    if (terms.length === 0) return true;
+    const haystack = fields.filter((f) => !isEmpty(f)).join(" ").toLowerCase();
+    return terms.every((t) => haystack.includes(t));
+  }
+
+  // A sorted copy. Numbers sort numerically, text naturally ("Fund 2" before "Fund 10") and without
+  // regard to case. Empty values go last in either direction, and equal values keep their order.
+  function sortRows(rows, accessor, dir) {
+    const sign = dir === "desc" ? -1 : 1;
+    const decorated = rows.map((row, index) => ({ row, index, value: accessor(row) }));
+    decorated.sort((a, b) => {
+      const ea = isEmpty(a.value), eb = isEmpty(b.value);
+      if (ea || eb) return ea && eb ? a.index - b.index : ea ? 1 : -1;
+      const c = typeof a.value === "number" && typeof b.value === "number"
+        ? a.value - b.value
+        : String(a.value).localeCompare(String(b.value), undefined, { numeric: true, sensitivity: "base" });
+      return c * sign || a.index - b.index;
+    });
+    return decorated.map((d) => d.row);
+  }
+
+  // One CSV field. Text that starts with = + - @ or a control character is prefixed with an apostrophe,
+  // because a spreadsheet would run it as a formula and statement text is not under our control.
+  // Numbers are written as they are, so a negative amount stays a number.
+  function csvCell(value) {
+    if (isEmpty(value)) return "";
+    if (typeof value === "number") return Number.isFinite(value) ? String(value) : "";
+    let text = String(value);
+    if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
+    return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  }
+
+  // columns: [{ header, value(row) }]. CRLF line endings, a header row even when there are no rows.
+  function toCsv(columns, rows) {
+    const lines = [columns.map((c) => csvCell(c.header)).join(",")];
+    for (const row of rows) lines.push(columns.map((c) => csvCell(c.value(row))).join(","));
+    return `${lines.join("\r\n")}\r\n`;
+  }
+
+  const api = { matchesQuery, sortRows, csvCell, toCsv };
+  if (typeof module !== "undefined" && module.exports) module.exports = api;
+  else root.PortfolioTools = api;
+})(typeof self !== "undefined" ? self : this);

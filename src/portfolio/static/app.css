@@ -104,3 +104,11 @@ caption { text-align: left; font-weight: 600; font-size: 0.8rem; color: var(--mu
 .checks .ok .mark { color: var(--gain); }
 .checks .warn .mark { color: var(--warn); }
 .checks .detail { color: var(--muted); font-size: 0.8rem; margin-top: 2px; }
+
+.toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 4px 0 10px; font-size: 0.875rem; color: var(--muted); }
+.toolbar label { display: flex; gap: 6px; align-items: center; }
+.toolbar input[type="search"], .toolbar select { font: inherit; padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); }
+.toolbar input[type="search"] { min-width: 230px; }
+th button.sort { all: unset; cursor: pointer; font-weight: 600; color: inherit; font-size: inherit; }
+th button.sort:hover, th button.sort:focus-visible { color: var(--text); text-decoration: underline; }
+th button.sort::after { content: " " attr(data-arrow); color: var(--accent); }

@@ -77,6 +77,10 @@ curl -s localhost:8000/healthz                       # ok / degraded, and the ag
 There is no `--reload`, so **restart the service after every code change** (`git pull` alone is not enough). To stop using it: `systemctl --user disable --now portfolio.service portfolio-backup.timer portfolio-prices.timer`.
 If you keep the app offline (`PORTFOLIO_FETCH_PRICES=false`), disable `portfolio-prices.timer` too, since the refresh then exits with an error.
 
+## Finding and exporting holdings
+
+Both tables (demat holdings, mutual fund folios) have a **search box** (name, symbol, ISIN, broker or fund house; every word must match), a **type filter** and a **"held in more than one account"** filter for demat holdings, and **sortable columns** (click a heading, click again to reverse). **Export CSV** saves exactly the rows you see, with the filters and sort applied, as a file in your browser. The export contains your holdings, with only the last 4 characters of account and folio numbers, so keep it as private as the statement itself. Nothing is sent to the server for any of this.
+
 ## Upload a statement
 
 1. Choose the PDF and enter its password, then click **Upload**. If the password fails as typed, it's retried in capitals.
