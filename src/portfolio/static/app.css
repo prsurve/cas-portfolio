@@ -270,7 +270,7 @@ a.symbol:hover { text-decoration: underline; color: var(--accent); }
 .limit .mark { font-weight: 700; }
 .parts { list-style: none; margin: 0; padding: 0; }
 .parts li { display: flex; justify-content: space-between; gap: var(--space-3); padding: var(--space-1) 0; font-size: 0.9rem; }
-#holdings td:first-child { white-space: normal; min-width: 180px; max-width: 320px; }
+#holdings td:first-child { white-space: normal; min-width: 180px; max-width: 270px; }
 #holdings td:nth-child(5) .subtle { white-space: normal; }  /* only the gain note may wrap; dates stay on one line */
 
 /* Guided import */
@@ -310,3 +310,17 @@ dialog label { display: grid; gap: var(--space-1); font-size: 0.875rem; color: v
 dialog input[type="text"] { font: inherit; padding: var(--space-2); border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); }
 #view-error:empty { display: none; }
 #view-error { margin: var(--space-2) 0 0; font-size: 0.875rem; }
+/* Headings and the main area receive focus only so a screen reader starts reading there after navigation.
+   They are not controls, so a ring on them would look like a stray highlight. */
+h1[tabindex="-1"]:focus, h2[tabindex="-1"]:focus, main:focus { outline: none; }
+
+/* The comparison table has seven columns: let names and headings wrap so it fits beside the sidebar. */
+#changes th { white-space: normal; vertical-align: bottom; }
+#changes td:first-child { white-space: normal; min-width: 170px; max-width: 280px; }
+
+/* Tablets: a narrower sidebar leaves room for the tables. Last in the file, because the base .shell rule is
+   defined above and an earlier media rule would lose to it. */
+@media (min-width: 641px) and (max-width: 900px) {
+  .shell { grid-template-columns: 132px minmax(0, 1fr); gap: var(--space-4); }
+  .nav a { padding: 10px var(--space-2); }
+}
