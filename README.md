@@ -91,6 +91,7 @@ src/portfolio/
   importers/cas.py     parse NSDL/CDSL and CAMS/KFintech PDFs (via casparser), CLI, diagnose
   store.py             schema + data access (SQLite; Postgres-compatible)
   portfolio_view.py    dashboard numbers: merge by ISIN/scheme, totals, allocation
+  history.py           value at each statement date (no double counting)
   app.py               FastAPI: upload, statements, portfolio JSON
   static/              dashboard page (vanilla JS)
 ```

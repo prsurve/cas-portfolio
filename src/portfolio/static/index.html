@@ -39,6 +39,32 @@
     <div id="totals" class="tiles"></div>
   </section>
 
+  <section aria-labelledby="history-h" id="history-section" hidden>
+    <h2 id="history-h">Value at each statement</h2>
+    <p class="subtle">
+      What you held on each statement date. It rises when you add money as well as when prices rise,
+      so it is not your return. A hollow point means its stocks and funds come from statements more
+      than a week apart.
+    </p>
+    <div class="card chart-card">
+      <div id="history-chart" class="chart"></div>
+      <div class="table-wrap">
+        <table id="history">
+          <thead>
+            <tr>
+              <th scope="col">Statement date</th>
+              <th scope="col" class="num">Total</th>
+              <th scope="col" class="num">Demat</th>
+              <th scope="col" class="num">Mutual funds</th>
+              <th scope="col">Note</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
   <section aria-labelledby="alloc-h" id="alloc-section" hidden>
     <h2 id="alloc-h">Allocation</h2>
     <div id="allocation" class="alloc-grid"></div>

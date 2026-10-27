@@ -64,6 +64,19 @@ function expandable(mainCells, subRows) {
   return [main, ...subRows];
 }
 
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+// SVG counterpart of el(): attributes only, never markup strings.
+function svgEl(tag, attrs = {}, ...children) {
+  const node = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+  for (const child of children.flat()) {
+    if (child === null || child === undefined) continue;
+    node.append(child instanceof Node ? child : document.createTextNode(String(child)));
+  }
+  return node;
+}
+
 // ---- upload -------------------------------------------------------------------
 
 function renderUploadResult(r) {
@@ -145,6 +158,40 @@ function renderTotals(p) {
     }
   }
   document.getElementById("totals").replaceChildren(...tiles);
+}
+
+function renderHistory(points) {
+  document.getElementById("history-section").hidden = points.length < 2;  // one point is not a trend
+  if (points.length < 2) return;
+  const W = 720, H = 240, L = 78, R = 16, T = 16, B = 30;
+  const times = points.map((p) => new Date(`${p.date}T00:00:00`).getTime());
+  const lo = Math.min(...points.map((p) => p.value)), hi = Math.max(...points.map((p) => p.value));
+  const pad = (hi - lo) * 0.1 || hi * 0.1 || 1;
+  const yMin = Math.max(0, lo - pad), yMax = hi + pad;
+  const x = (t) => L + ((t - times[0]) / (times[times.length - 1] - times[0] || 1)) * (W - L - R);
+  const y = (v) => T + (1 - (v - yMin) / (yMax - yMin)) * (H - T - B);
+  const label = (text, attrs) => svgEl("text", attrs, text);
+  const svg = svgEl("svg", {
+    viewBox: `0 0 ${W} ${H}`, role: "img",
+    "aria-label": `Portfolio value at each statement, from ${day(points[0].date)} to ${day(points[points.length - 1].date)}`,
+  },
+  [yMin, yMax].map((v) => svgEl("line", { class: "grid", x1: L, x2: W - R, y1: y(v), y2: y(v) })),
+  label(money(yMax), { x: L - 8, y: y(yMax) + 4, "text-anchor": "end" }),
+  label(money(yMin), { x: L - 8, y: y(yMin) + 4, "text-anchor": "end" }),
+  label(day(points[0].date), { x: L, y: H - 8, "text-anchor": "start" }),
+  label(day(points[points.length - 1].date), { x: W - R, y: H - 8, "text-anchor": "end" }),
+  svgEl("polyline", { class: "line", points: points.map((p, i) => `${x(times[i])},${y(p.value)}`).join(" ") }),
+  points.map((p, i) => svgEl("circle", { class: p.mixed ? "dot mixed" : "dot", cx: x(times[i]), cy: y(p.value), r: 4 },
+    svgEl("title", {}, `${day(p.date)}: ${money(p.value)}`))));
+  document.getElementById("history-chart").replaceChildren(svg);
+
+  document.querySelector("#history tbody").replaceChildren(...[...points].reverse().map((p) => el("tr", null,
+    el("td", null, day(p.date)),
+    el("td", { class: "num" }, money(p.value)),
+    el("td", { class: "num" }, money(p.demat_value)),
+    el("td", { class: "num" }, money(p.mf_value)),
+    el("td", { class: p.mixed ? "loss" : "subtle" },
+      p.mixed ? `Stocks and funds are ${p.spread_days} days apart` : p.mf_source ? `Funds from ${ISSUERS[p.mf_source]}` : ""))));
 }
 
 function renderAllocation(p) {
@@ -265,9 +312,11 @@ let lastPortfolio = null;
 
 async function load() {
   try {
-    const [portfolio, statements] = await Promise.all([api("/api/portfolio"), api("/api/statements")]);
+    const [portfolio, statements, history] = await Promise.all(
+      [api("/api/portfolio"), api("/api/statements"), api("/api/history")]);
     lastPortfolio = portfolio;
     renderTotals(portfolio);
+    renderHistory(history.points);
     renderAllocation(portfolio);
     renderFunds(portfolio);
     renderStocks(portfolio);
