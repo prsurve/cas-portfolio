@@ -17,8 +17,8 @@ from datetime import date, datetime, timezone
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
-from portfolio.importers.cas import broker_label
-from portfolio.store import Store, as_utc, mf_holdings, stock_holdings
+from portfolio.importers.cas import TOLERANCE, broker_label
+from portfolio.store import Store, as_utc, mf_holdings, statement_accounts, stock_holdings
 
 ZERO = Decimal(0)
 # The total adds stocks and funds from possibly different statements. Beyond this
@@ -84,6 +84,52 @@ def _stocks(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], Decimal]:
     return out, sum((h["value"] for h in out), ZERO)
 
 
+def _history(members: list[dict[str, Any]]) -> str:
+    """Whether a fund's transactions describe the whole holding (see mf_holdings.open_units)."""
+    opening = [m.get("open_units") for m in members]
+    if any(o is None for o in opening):
+        return "unknown"
+    return "incomplete" if any(o != 0 for o in opening) else "complete"
+
+
+def _completeness(store: Store, demat: dict[str, Any] | None, stocks: list[dict[str, Any]],
+                  funds: list[dict[str, Any]]) -> dict[str, Any]:
+    """How much of what the statements printed was read, and what is missing."""
+    out: dict[str, Any] = {"demat": None, "funds": None, "stocks": None}
+    if demat:
+        rows = store.rows_for(statement_accounts, demat["id"])
+        if not rows:
+            out["demat"] = {"available": False}  # imported before reconciliation was stored
+        else:
+            def line(r: dict[str, Any]) -> dict[str, Any]:
+                gap = Decimal(r["statement_total"]) - Decimal(r["imported_value"])
+                return {"label": broker_label(r["name"]), "client": r["client_id_masked"],
+                        "depository": r["depository"], "statement_total": Decimal(r["statement_total"]),
+                        "imported_value": Decimal(r["imported_value"]), "gap": gap, "ok": abs(gap) <= TOLERANCE}
+            accounts = [line(r) for r in rows if r["section"] == "demat"]
+            folios = next((line(r) for r in rows if r["section"] == "folios"), None)
+            total = sum((a["statement_total"] for a in accounts), ZERO)
+            read = sum((a["imported_value"] for a in accounts), ZERO)
+            covered = sum((min(a["imported_value"], a["statement_total"]) for a in accounts), ZERO)
+            out["demat"] = {
+                "available": True, "accounts": accounts, "all_match": all(a["ok"] for a in accounts),
+                "statement_total": total, "imported_value": read, "gap": total - read,
+                "coverage_pct": _pct(covered, total),
+                "folios": {k: folios[k] for k in ("statement_total", "imported_value", "gap", "ok")}
+                if folios else None,
+            }
+        equities = [h for h in stocks if h["asset_type"] == "equity"]
+        out["stocks"] = {"count": len(equities), "without_symbol": sum(1 for h in equities if not h["symbol"])}
+    if funds:
+        costed = sum(1 for f in funds if f["cost"] is not None)
+        out["funds"] = {
+            "count": len(funds), "with_cost": costed, "without_cost": len(funds) - costed,
+            "unknown_amc": sum(1 for f in funds if not f["amc"]),
+            "history": {k: sum(1 for f in funds if f["history"] == k) for k in ("complete", "incomplete", "unknown")},
+        }
+    return out
+
+
 def _funds(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, Decimal]]:
     groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for r in rows:
@@ -99,6 +145,7 @@ def _funds(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, 
             "amc": members[0]["amc"],
             "isin": members[0]["isin"],
             "scheme_type": members[0]["scheme_type"],
+            "history": _history(members),
             "units": sum((Decimal(m["units"]) for m in members), ZERO),
             "nav": members[0]["nav"],
             "nav_date": members[0]["nav_date"],
@@ -197,6 +244,7 @@ def compute_view(store: Store, stale_after_days: int = 45, today: date | None = 
             "funds_count": len(funds),
         },
         "as_of": _as_of(demat, mf),
+        "completeness": _completeness(store, demat, stocks, funds),
         "statements": {
             "demat": _statement_info(demat, today, stale_after_days),
             "mf": _statement_info(mf, today, stale_after_days),

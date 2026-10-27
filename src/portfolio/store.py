@@ -103,6 +103,21 @@ mf_transactions = Table(
     Column("balance", NUM),
 )
 
+# What each statement printed against what was read: one row per demat account, plus one
+# for the "Mutual Fund Folios" section. section is "demat" or "folios". Statements stored
+# before parser version 6 have none; re-uploading the PDF fills them in.
+statement_accounts = Table(
+    "statement_accounts", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("statement_id", Integer, ForeignKey("statements.id"), nullable=False, index=True),
+    Column("section", String(8), nullable=False),
+    Column("name", String(256)),
+    Column("depository", String(8)),
+    Column("client_id_masked", String(32)),
+    Column("statement_total", NUM, nullable=False),
+    Column("imported_value", NUM, nullable=False),
+)
+
 audit_log = Table(
     "audit_log", metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),
@@ -111,7 +126,7 @@ audit_log = Table(
     Column("detail", Text),
 )
 
-CHILD_TABLES = (stock_holdings, mf_holdings, mf_transactions)
+CHILD_TABLES = (stock_holdings, mf_holdings, mf_transactions, statement_accounts)
 
 
 def utcnow() -> datetime:
@@ -188,6 +203,7 @@ class Store:
         stocks: list[dict[str, Any]] = (),
         mfs: list[dict[str, Any]] = (),
         transactions: list[dict[str, Any]] = (),
+        accounts: list[dict[str, Any]] = (),
     ) -> tuple[int, bool]:
         """Store a parsed statement atomically. Returns (id, created).
 
@@ -209,7 +225,8 @@ class Store:
                 period_from=period_from, period_to=period_to, imported_at=utcnow(),
                 warnings="\n".join(warnings) or None, parser_version=parser_version,
             )).inserted_primary_key[0]
-            for table, rows in ((stock_holdings, stocks), (mf_holdings, mfs), (mf_transactions, transactions)):
+            for table, rows in ((stock_holdings, stocks), (mf_holdings, mfs), (mf_transactions, transactions),
+                                (statement_accounts, accounts)):
                 if rows:
                     conn.execute(insert(table), [{**r, "statement_id": statement_id} for r in rows])
             return statement_id, True

@@ -190,6 +190,63 @@ function renderHistory(points) {
       p.mixed ? `Stocks and funds are ${p.spread_days} days apart` : p.mf_source ? `Funds from ${ISSUERS[p.mf_source]}` : ""))));
 }
 
+// ---- completeness ------------------------------------------------------------------
+
+function completenessChecks(c) {
+  const checks = [];  // [ok, text, detail?]
+  const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+  if (c.demat) {
+    const d = c.demat;
+    if (!d.available) {
+      checks.push([false, "Account totals were not stored for this demat statement.",
+        "Upload the same PDF again. It will be read with the current version and each account checked against its printed total."]);
+    } else if (d.all_match) {
+      checks.push([true, `All ${plural(d.accounts.length, "demat account")} add up to the totals printed on the statement.`]);
+    } else {
+      const bad = d.accounts.filter((a) => !a.ok);
+      checks.push([false, `${bad.length} of ${plural(d.accounts.length, "demat account")} do not add up to the statement total. ` +
+        `${money(d.imported_value)} of ${money(d.statement_total)} was read.`,
+        bad.map((a) => `${a.label} ${a.client || ""}: statement ${money(a.statement_total)}, read ${money(a.imported_value)}`).join(" · ")]);
+    }
+    if (d.available && d.folios) {
+      checks.push([d.folios.ok, d.folios.ok ? "Mutual fund folios add up to the statement total."
+        : `Mutual fund folios: statement ${money(d.folios.statement_total)}, read ${money(d.folios.imported_value)}.`]);
+    }
+  }
+  if (c.stocks && c.stocks.without_symbol) {
+    checks.push([false, `${plural(c.stocks.without_symbol, "stock")} of ${c.stocks.count} ${c.stocks.without_symbol === 1 ? "has" : "have"} no NSE symbol.`,
+      "They are shown by name. Prices from public data (a later feature) need a match by ISIN."]);
+  }
+  if (c.funds) {
+    const f = c.funds;
+    checks.push([f.without_cost === 0, f.without_cost === 0 ? `All ${plural(f.count, "fund")} have a purchase cost.`
+      : `${f.without_cost} of ${plural(f.count, "fund")} ${f.without_cost === 1 ? "has" : "have"} no purchase cost, so no gain is shown for ${f.without_cost === 1 ? "it" : "them"}.`]);
+    if (f.unknown_amc) checks.push([false, `${plural(f.unknown_amc, "fund")} ${f.unknown_amc === 1 ? "has" : "have"} no fund house name.`]);
+    const h = f.history;
+    if (h.unknown) {
+      checks.push([false, `Transaction history is missing for ${h.unknown} of ${plural(f.count, "fund")}.`,
+        "Upload a detailed CAS from CAMS or KFintech to get it. Returns (XIRR) need it."]);
+    }
+    if (h.incomplete) {
+      checks.push([false, `${plural(h.incomplete, "fund")} ${h.incomplete === 1 ? "was" : "were"} held before the first statement began, so the history is partial.`,
+        "Request a CAMS or KFintech statement covering the full period."]);
+    }
+    if (!h.unknown && !h.incomplete) checks.push([true, "Transaction history covers the whole holding for every fund."]);
+  }
+  return checks;
+}
+
+function renderCompleteness(p) {
+  const checks = completenessChecks(p.completeness);
+  document.getElementById("complete-section").hidden = checks.length === 0;
+  document.getElementById("completeness").replaceChildren(...checks.map(([ok, text, detail]) =>
+    el("li", { class: ok ? "ok" : "warn" },
+      el("span", { class: "mark", "aria-hidden": "true" }, ok ? "✓" : "!"),
+      el("div", null,
+        el("span", { class: "sr-only" }, ok ? "OK: " : "Needs attention: "), text,
+        detail ? el("div", { class: "detail" }, detail) : null))));
+}
+
 // ---- changes between statements ---------------------------------------------------
 
 const CHANGE_KINDS = { new: "New", exited: "Sold out", more: "Bought more", less: "Sold some", price: "Price only" };
@@ -362,7 +419,6 @@ function collectAlerts(p) {
     alerts.push(`The total adds statements ${p.as_of.spread_days} days apart (${day(p.as_of.from)} and ` +
       `${day(p.as_of.to)}), so it is not a value on one day. Upload a newer statement for the older part.`);
   }
-  if (p.totals.mf_without_cost) alerts.push(`${p.totals.mf_without_cost} fund(s) have no purchase cost on the statement.`);
   return alerts;
 }
 
@@ -374,6 +430,7 @@ async function load() {
       [api("/api/portfolio"), api("/api/statements"), api("/api/history")]);
     lastPortfolio = portfolio;
     renderTotals(portfolio);
+    renderCompleteness(portfolio);
     renderHistory(history.points);
     setupChanges(history.points);
     renderAllocation(portfolio);
