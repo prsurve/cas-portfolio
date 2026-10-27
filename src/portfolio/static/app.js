@@ -40,6 +40,14 @@ function showAlerts(messages) {
   document.getElementById("alerts").replaceChildren(...messages.map((m) => el("div", { class: "alert" }, m)));
 }
 
+// A load failure says what to try, and offers to try again.
+function showLoadError(err) {
+  document.getElementById("alerts").replaceChildren(el("div", { class: "alert" },
+    `Could not load your portfolio: ${err.message}. If the server was just updated or restarted, try again; ` +
+    "if it keeps failing, check that the server is still running.",
+    el("button", { type: "button", class: "btn", onclick: () => load() }, "Try again")));
+}
+
 // A summary row that expands to show its per-folio or per-account rows.
 function expandable(mainCells, subRows) {
   const toggle = (row) => {
@@ -107,8 +115,11 @@ async function upload(event) {
   const btn = document.getElementById("upload-btn");
   const file = fileInput.files[0];
   if (!file) return;
+  const resultBox = document.getElementById("upload-result");
   btn.disabled = true;
   btn.textContent = "Reading…";
+  resultBox.setAttribute("aria-busy", "true");
+  resultBox.replaceChildren(el("div", { class: "result" }, "Reading the statement. A large one can take up to a minute."));
   try {
     const result = await api("/api/statements", {
       method: "POST",
@@ -119,8 +130,10 @@ async function upload(event) {
     fileInput.value = "";
     await load();
   } catch (err) {
-    document.getElementById("upload-result").replaceChildren(el("div", { class: "result error" }, err.message));
+    resultBox.replaceChildren(el("div", { class: "result error" }, err.message));
   } finally {
+    resultBox.removeAttribute("aria-busy");
+    resultBox.focus();  // so the result or the error is announced and the next Tab starts after it
     passwordInput.value = "";  // never kept in the page
     btn.disabled = false;
     btn.textContent = "Upload";
@@ -688,6 +701,10 @@ async function load() {
     const [portfolio, statements, history] = await Promise.all(
       [api("/api/portfolio"), api("/api/statements"), api("/api/history")]);
     lastPortfolio = portfolio;
+    const empty = statements.statements.length === 0;
+    document.getElementById("empty-state").hidden = !empty;
+    document.getElementById("totals").hidden = empty;  // a row of zero totals would read as real figures
+    document.getElementById("prices-bar").hidden = empty;
     renderTotals(portfolio);
     renderCompleteness(portfolio);
     renderHistory(history.points);
@@ -699,7 +716,9 @@ async function load() {
     renderStatements(statements.statements);
     showAlerts(collectAlerts(portfolio));
   } catch (err) {
-    showAlerts([`Could not load data: ${err.message}`]);
+    showLoadError(err);
+  } finally {
+    document.getElementById("loading").hidden = true;
   }
 }
 

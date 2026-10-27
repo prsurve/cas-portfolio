@@ -131,3 +131,20 @@ def test_there_is_a_tablet_breakpoint_and_big_touch_targets():
     css = (STATIC / "app.css").read_text()
     assert "@media (min-width: 641px) and (max-width: 900px)" in css
     assert re.search(r"min-height:\s*44px", css)
+
+
+def test_every_element_the_script_looks_up_exists_in_the_page():
+    """A renamed or removed id would otherwise fail only in the browser, as a null error."""
+    html = (STATIC / "index.html").read_text()
+    ids = set(re.findall(r'id="([\w-]+)"', html))
+    wanted = set(re.findall(r'getElementById\("([\w-]+)"\)', (STATIC / "app.js").read_text()))
+    assert wanted - ids == set(), f"app.js looks up ids that index.html lacks: {sorted(wanted - ids)}"
+
+
+def test_new_install_shows_steps_and_load_errors_offer_a_retry():
+    html = (STATIC / "index.html").read_text()
+    js = (STATIC / "app.js").read_text()
+    assert 'id="empty-state"' in html and 'id="loading"' in html
+    assert 'getElementById("empty-state").hidden = !empty' in js
+    assert "Try again" in js and "showLoadError(err)" in js
+    assert re.search(r'id="upload-result"[^>]*tabindex="-1"', html), "the upload result must be focusable so it can be announced"

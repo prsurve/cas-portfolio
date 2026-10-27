@@ -188,3 +188,8 @@ th button.sort::after { content: " " attr(data-arrow); color: var(--accent); }
   table.cards tbody tr.holding[aria-expanded] td:first-child::after { content: "▾"; position: absolute; right: 2px; top: 0; color: var(--muted); }
   table.cards tbody tr.holding[aria-expanded="false"] td:first-child::after { content: "▸"; }
 }
+
+/* First-run steps and the retry button on a load error. */
+.steps { margin: 8px 0 0; padding-left: 22px; display: grid; gap: var(--space-2); font-size: 0.9rem; }
+#alerts .alert .btn { margin-left: var(--space-3); }
+#upload-result:focus { outline: none; }  /* focus is moved here so a screen reader reads the result; it is not a control */
