@@ -51,7 +51,8 @@ h2 { font-size: 1.05rem; margin: 32px 0 12px; }
 
 button, .btn {
   font: inherit; font-size: 0.875rem; padding: var(--space-2) var(--space-4); border-radius: var(--radius); cursor: pointer;
-  border: 1px solid var(--border); background: var(--surface); color: var(--text); text-decoration: none; display: inline-block;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text); text-decoration: none;
+  display: inline-flex; align-items: center; justify-content: center;  /* links and buttons line up the same way */
 }
 button:hover, .btn:hover { border-color: var(--accent); }
 a:focus-visible, button:focus-visible, .btn:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible,
@@ -222,3 +223,12 @@ main { min-width: 0; }
   .nav a[aria-current="page"] { background: none; border-top-color: var(--accent); }
 }
 #alerts { margin-bottom: var(--space-3); }
+
+/* Overview panels */
+.quality-head { margin: var(--space-3) 0 var(--space-1); font-weight: 600; }
+#completeness-ok { margin-top: var(--space-2); }
+#completeness-ok summary { cursor: pointer; color: var(--muted); font-size: 0.875rem; }
+.movers { list-style: none; margin: 0 0 var(--space-3); padding: 0; }
+.movers li { display: flex; justify-content: space-between; gap: var(--space-3); padding: var(--space-2) 0; border-bottom: 1px solid var(--border); }
+.movers li:last-child { border-bottom: 0; }
+.movers .num { font-variant-numeric: tabular-nums; white-space: nowrap; }

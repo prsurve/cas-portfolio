@@ -27,219 +27,245 @@
 
     <div class="page" id="page-overview" data-page="overview" hidden>
       <h1 id="overview-title" tabindex="-1">Overview</h1>
-    <section aria-labelledby="empty-h" id="empty-state" class="card" hidden>
-      <h2 id="empty-h">Start with your first statement</h2>
-      <p class="subtle">Nothing is stored yet. This takes about two minutes, and nothing leaves this machine.</p>
-      <ol class="steps">
-        <li><strong>Get the statement.</strong> Download a consolidated account statement (CAS) as a PDF from NSDL or CDSL.
-          It lists your stocks, ETFs, bonds and mutual fund folios.</li>
-        <li><strong>Upload it on the <a href="#/imports">Imports</a> page</strong> with the PDF's password. NSDL and CDSL statements use your PAN in capitals.
-          The file is read in memory and not stored.</li>
-        <li><strong>Check the result.</strong> The page shows whether each account adds up to the total printed on the statement.
-          Anything that does not is listed under Data completeness, with what to do.</li>
-      </ol>
-    </section>
-    <section aria-labelledby="totals-h">
-      <h2 id="totals-h" class="sr-only">Totals</h2>
-      <div id="totals" class="tiles"></div>
-    </section>
-    <section aria-label="Latest prices" id="prices-bar">
-      <div class="controls">
-        <button type="button" class="btn" id="refresh-prices">Refresh prices</button>
-        <span class="subtle" id="refresh-status" role="status" aria-live="polite">
-          Downloads public end-of-day files (AMFI fund NAVs, NSE and BSE closing prices). Nothing about your holdings is sent.
-        </span>
-      </div>
-    </section>
-    <section aria-labelledby="complete-h" id="complete-section" hidden>
-      <h2 id="complete-h">Data completeness</h2>
-      <div class="card"><ul id="completeness" class="checks"></ul></div>
-    </section>
-    <section aria-labelledby="alloc-h" id="alloc-section" hidden>
-      <h2 id="alloc-h">Allocation</h2>
-      <div id="allocation" class="alloc-grid"></div>
-    </section>
-    <section aria-labelledby="conc-h" id="conc-section" hidden>
-      <h2 id="conc-h">Concentration</h2>
-      <p class="subtle" id="conc-note"></p>
-      <div id="conc-tiles" class="tiles"></div>
-      <div class="card"><ul id="conc-checks" class="checks"></ul></div>
-      <div id="conc-cards" class="alloc-grid conc-cards"></div>
-    </section>
+      <section aria-labelledby="empty-h" id="empty-state" class="card" hidden>
+        <h2 id="empty-h">Start with your first statement</h2>
+        <p class="subtle">Nothing is stored yet. This takes about two minutes, and nothing leaves this machine.</p>
+        <ol class="steps">
+          <li><strong>Get the statement.</strong> Download a consolidated account statement (CAS) as a PDF from NSDL or CDSL.
+            It lists your stocks, ETFs, bonds and mutual fund folios.</li>
+          <li><strong>Upload it on the <a href="#/imports">Imports</a> page</strong> with the PDF's password. NSDL and CDSL statements use your PAN in capitals.
+            The file is read in memory and not stored.</li>
+          <li><strong>Check the result.</strong> The page shows whether each account adds up to the total printed on the statement.
+            Anything that does not is listed under Data quality, with what to do.</li>
+        </ol>
+      </section>
+      <section aria-labelledby="totals-h">
+        <h2 id="totals-h" class="sr-only">Totals</h2>
+        <div id="totals" class="tiles"></div>
+      </section>
+
+      <section aria-label="Actions" id="prices-bar">
+        <div class="controls">
+          <a class="btn primary" href="#/imports">Upload a statement</a>
+          <a class="btn" href="#/holdings">View holdings</a>
+          <button type="button" class="btn" id="refresh-prices">Refresh prices</button>
+        </div>
+        <p class="subtle" id="refresh-status" role="status" aria-live="polite">
+          Refresh prices downloads public end-of-day files (AMFI fund NAVs, NSE and BSE closing prices). Nothing about your holdings is sent.
+        </p>
+      </section>
+
+      <section aria-labelledby="fresh-h" id="fresh-section" hidden>
+        <h2 id="fresh-h">How current is this?</h2>
+        <div class="card"><ul id="freshness" class="checks"></ul></div>
+      </section>
+
+      <section aria-labelledby="prev-h" id="prev-section" hidden>
+        <h2 id="prev-h">Since the previous statement</h2>
+        <div class="card">
+          <p id="prev-summary" class="subtle"></p>
+          <ul id="prev-list" class="movers"></ul>
+          <p><a href="#/performance">All changes and a different comparison</a></p>
+        </div>
+      </section>
+
+      <section aria-labelledby="complete-h" id="complete-section" hidden>
+        <h2 id="complete-h">Data quality</h2>
+        <div class="card">
+          <p id="completeness-summary" class="quality-head"></p>
+          <ul id="completeness" class="checks"></ul>
+          <details id="completeness-ok" hidden>
+            <summary id="completeness-ok-summary"></summary>
+            <ul id="completeness-passed" class="checks"></ul>
+          </details>
+        </div>
+      </section>
+
+      <section aria-labelledby="alloc-h" id="alloc-section" hidden>
+        <h2 id="alloc-h">Allocation</h2>
+        <div id="allocation" class="alloc-grid"></div>
+      </section>
+      <section aria-labelledby="conc-h" id="conc-section" hidden>
+        <h2 id="conc-h">Concentration</h2>
+        <p class="subtle" id="conc-note"></p>
+        <div id="conc-tiles" class="tiles"></div>
+        <div class="card"><ul id="conc-checks" class="checks"></ul></div>
+        <div id="conc-cards" class="alloc-grid conc-cards"></div>
+      </section>
     </div>
 
     <div class="page" id="page-holdings" data-page="holdings" hidden>
       <h1 id="holdings-title" tabindex="-1">Holdings</h1>
-    <section aria-labelledby="funds-h" id="funds-section" hidden>
-      <h2 id="funds-h">Mutual fund folios <span class="subtle" id="funds-asof"></span></h2>
-      <div class="toolbar">
-        <label class="mobile-only">Sort <select id="funds-sort"></select></label>
-        <label>Search <input type="search" id="funds-q" placeholder="Scheme, fund house or ISIN" autocomplete="off"></label>
-        <button type="button" class="btn" id="funds-csv">Export CSV</button>
-        <span class="subtle" id="funds-count" role="status" aria-live="polite"></span>
-      </div>
-      <div class="table-wrap">
-        <table id="funds" class="cards">
-          <thead>
-            <tr>
-              <th scope="col" data-sort="scheme">Scheme</th>
-              <th scope="col" class="num" data-sort="units">Units</th>
-              <th scope="col" class="num" data-sort="nav">NAV</th>
-              <th scope="col" class="num" data-sort="cost">Invested</th>
-              <th scope="col" class="num" data-sort="value">Value</th>
-              <th scope="col" class="num" data-sort="gain">Gain</th>
-              <th scope="col" class="num" data-sort="latest">At latest NAV</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
-    <section aria-labelledby="stocks-h" id="stocks-section" hidden>
-      <h2 id="stocks-h">Demat holdings <span class="subtle" id="stocks-asof"></span></h2>
-      <div class="toolbar">
-        <label class="mobile-only">Sort <select id="stocks-sort"></select></label>
-        <label>Search <input type="search" id="stocks-q" placeholder="Name, symbol, ISIN or broker" autocomplete="off"></label>
-        <label>Type
-          <select id="stocks-type">
-            <option value="all">All</option>
-            <option value="equity">Stocks</option>
-            <option value="fund">ETFs &amp; funds</option>
-            <option value="bond">Bonds &amp; SGBs</option>
-          </select>
-        </label>
-        <label class="filter"><input type="checkbox" id="multi-only"> Held in more than one demat account</label>
-        <button type="button" class="btn" id="stocks-csv">Export CSV</button>
-        <span class="subtle" id="stocks-count" role="status" aria-live="polite"></span>
-      </div>
-      <div class="table-wrap">
-        <table id="stocks" class="cards">
-          <thead>
-            <tr>
-              <th scope="col" data-sort="name">Holding</th>
-              <th scope="col" class="num" data-sort="quantity">Quantity</th>
-              <th scope="col" class="num" data-sort="price">Price</th>
-              <th scope="col" class="num" data-sort="value">Value</th>
-              <th scope="col" class="num" data-sort="latest">At latest price</th>
-              <th scope="col" class="num" data-sort="weight">Weight</th>
-              <th scope="col" data-sort="brokers">Brokers</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
-    </div>
-
-    <div class="page" id="page-performance" data-page="performance" hidden>
-      <h1 id="performance-title" tabindex="-1">Performance</h1>
-    <section aria-labelledby="history-h" id="history-section" hidden>
-      <h2 id="history-h">Value at each statement</h2>
-      <p class="subtle">
-        What you held on each statement date. It rises when you add money as well as when prices rise,
-        so it is not your return. A hollow point means its stocks and funds come from statements more
-        than a week apart.
-      </p>
-      <div class="card chart-card">
-        <div id="history-chart" class="chart"></div>
+      <section aria-labelledby="funds-h" id="funds-section" hidden>
+        <h2 id="funds-h">Mutual fund folios <span class="subtle" id="funds-asof"></span></h2>
+        <div class="toolbar">
+          <label class="mobile-only">Sort <select id="funds-sort"></select></label>
+          <label>Search <input type="search" id="funds-q" placeholder="Scheme, fund house or ISIN" autocomplete="off"></label>
+          <button type="button" class="btn" id="funds-csv">Export CSV</button>
+          <span class="subtle" id="funds-count" role="status" aria-live="polite"></span>
+        </div>
         <div class="table-wrap">
-          <table id="history" class="cards">
+          <table id="funds" class="cards">
             <thead>
               <tr>
-                <th scope="col">Statement date</th>
-                <th scope="col" class="num">Total</th>
-                <th scope="col" class="num">Demat</th>
-                <th scope="col" class="num">Mutual funds</th>
-                <th scope="col">Note</th>
+                <th scope="col" data-sort="scheme">Scheme</th>
+                <th scope="col" class="num" data-sort="units">Units</th>
+                <th scope="col" class="num" data-sort="nav">NAV</th>
+                <th scope="col" class="num" data-sort="cost">Invested</th>
+                <th scope="col" class="num" data-sort="value">Value</th>
+                <th scope="col" class="num" data-sort="gain">Gain</th>
+                <th scope="col" class="num" data-sort="latest">At latest NAV</th>
               </tr>
             </thead>
             <tbody></tbody>
           </table>
         </div>
-      </div>
-    </section>
-    <section aria-labelledby="changes-h" id="changes-section" hidden>
-      <h2 id="changes-h">What changed between statements</h2>
-      <p class="subtle">
-        Compares your holdings on two statement dates. Each change in value is split into what came from
-        holding more or less (bought or sold) and what came from price moves. This is worked out from
-        statement values, not from your trades.
-      </p>
-      <div class="controls">
-        <label>From <select id="chg-from"></select></label>
-        <label>To <select id="chg-to"></select></label>
-      </div>
-      <div id="changes-summary" class="subtle"></div>
-      <div id="changes-warnings"></div>
-      <div class="table-wrap">
-        <table id="changes" class="cards">
-          <thead>
-            <tr>
-              <th scope="col">Holding</th>
-              <th scope="col">Change</th>
-              <th scope="col" class="num">Quantity</th>
-              <th scope="col" class="num">Value before</th>
-              <th scope="col" class="num">Value after</th>
-              <th scope="col" class="num">Buying or selling</th>
-              <th scope="col" class="num">Price moves</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
+      </section>
+      <section aria-labelledby="stocks-h" id="stocks-section" hidden>
+        <h2 id="stocks-h">Demat holdings <span class="subtle" id="stocks-asof"></span></h2>
+        <div class="toolbar">
+          <label class="mobile-only">Sort <select id="stocks-sort"></select></label>
+          <label>Search <input type="search" id="stocks-q" placeholder="Name, symbol, ISIN or broker" autocomplete="off"></label>
+          <label>Type
+            <select id="stocks-type">
+              <option value="all">All</option>
+              <option value="equity">Stocks</option>
+              <option value="fund">ETFs &amp; funds</option>
+              <option value="bond">Bonds &amp; SGBs</option>
+            </select>
+          </label>
+          <label class="filter"><input type="checkbox" id="multi-only"> Held in more than one demat account</label>
+          <button type="button" class="btn" id="stocks-csv">Export CSV</button>
+          <span class="subtle" id="stocks-count" role="status" aria-live="polite"></span>
+        </div>
+        <div class="table-wrap">
+          <table id="stocks" class="cards">
+            <thead>
+              <tr>
+                <th scope="col" data-sort="name">Holding</th>
+                <th scope="col" class="num" data-sort="quantity">Quantity</th>
+                <th scope="col" class="num" data-sort="price">Price</th>
+                <th scope="col" class="num" data-sort="value">Value</th>
+                <th scope="col" class="num" data-sort="latest">At latest price</th>
+                <th scope="col" class="num" data-sort="weight">Weight</th>
+                <th scope="col" data-sort="brokers">Brokers</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <div class="page" id="page-performance" data-page="performance" hidden>
+      <h1 id="performance-title" tabindex="-1">Performance</h1>
+      <section aria-labelledby="history-h" id="history-section" hidden>
+        <h2 id="history-h">Value at each statement</h2>
+        <p class="subtle">
+          What you held on each statement date. It rises when you add money as well as when prices rise,
+          so it is not your return. A hollow point means its stocks and funds come from statements more
+          than a week apart.
+        </p>
+        <div class="card chart-card">
+          <div id="history-chart" class="chart"></div>
+          <div class="table-wrap">
+            <table id="history" class="cards">
+              <thead>
+                <tr>
+                  <th scope="col">Statement date</th>
+                  <th scope="col" class="num">Total</th>
+                  <th scope="col" class="num">Demat</th>
+                  <th scope="col" class="num">Mutual funds</th>
+                  <th scope="col">Note</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+      <section aria-labelledby="changes-h" id="changes-section" hidden>
+        <h2 id="changes-h">What changed between statements</h2>
+        <p class="subtle">
+          Compares your holdings on two statement dates. Each change in value is split into what came from
+          holding more or less (bought or sold) and what came from price moves. This is worked out from
+          statement values, not from your trades.
+        </p>
+        <div class="controls">
+          <label>From <select id="chg-from"></select></label>
+          <label>To <select id="chg-to"></select></label>
+        </div>
+        <div id="changes-summary" class="subtle"></div>
+        <div id="changes-warnings"></div>
+        <div class="table-wrap">
+          <table id="changes" class="cards">
+            <thead>
+              <tr>
+                <th scope="col">Holding</th>
+                <th scope="col">Change</th>
+                <th scope="col" class="num">Quantity</th>
+                <th scope="col" class="num">Value before</th>
+                <th scope="col" class="num">Value after</th>
+                <th scope="col" class="num">Buying or selling</th>
+                <th scope="col" class="num">Price moves</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
     </div>
 
     <div class="page" id="page-imports" data-page="imports" hidden>
       <h1 id="imports-title" tabindex="-1">Imports</h1>
-    <section aria-labelledby="upload-h" class="card">
-      <h2 id="upload-h">Upload a statement</h2>
-      <p class="subtle">
-        Upload the CAS from <strong>NSDL</strong> or <strong>CDSL</strong>: it covers stocks, ETFs, bonds and
-        mutual fund folios. A CAS from <strong>CAMS</strong> or <strong>KFintech</strong> is optional; it adds
-        mutual fund transaction history.
-        The PDF is read in memory and not stored. Neither is the password.
-      </p>
-      <form id="upload-form" class="upload" autocomplete="off">
-        <label>PDF file
-          <input type="file" id="pdf" accept="application/pdf,.pdf" required>
-        </label>
-        <label>PDF password
-          <input type="password" id="password" required autocomplete="off" spellcheck="false">
-        </label>
-        <button type="submit" class="btn primary" id="upload-btn">Upload</button>
-      </form>
-      <div id="upload-result" aria-live="polite" tabindex="-1"></div>
-    </section>
-    <section aria-labelledby="statements-h">
-      <h2 id="statements-h">Imported statements</h2>
-      <div class="table-wrap">
-        <table id="statements" class="cards">
-          <thead>
-            <tr>
-              <th scope="col">Issuer</th><th scope="col">Covers</th><th scope="col">Period</th>
-              <th scope="col">Imported</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
+      <section aria-labelledby="upload-h" class="card">
+        <h2 id="upload-h">Upload a statement</h2>
+        <p class="subtle">
+          Upload the CAS from <strong>NSDL</strong> or <strong>CDSL</strong>: it covers stocks, ETFs, bonds and
+          mutual fund folios. A CAS from <strong>CAMS</strong> or <strong>KFintech</strong> is optional; it adds
+          mutual fund transaction history.
+          The PDF is read in memory and not stored. Neither is the password.
+        </p>
+        <form id="upload-form" class="upload" autocomplete="off">
+          <label>PDF file
+            <input type="file" id="pdf" accept="application/pdf,.pdf" required>
+          </label>
+          <label>PDF password
+            <input type="password" id="password" required autocomplete="off" spellcheck="false">
+          </label>
+          <button type="submit" class="btn primary" id="upload-btn">Upload</button>
+        </form>
+        <div id="upload-result" aria-live="polite" tabindex="-1"></div>
+      </section>
+      <section aria-labelledby="statements-h">
+        <h2 id="statements-h">Imported statements</h2>
+        <div class="table-wrap">
+          <table id="statements" class="cards">
+            <thead>
+              <tr>
+                <th scope="col">Issuer</th><th scope="col">Covers</th><th scope="col">Period</th>
+                <th scope="col">Imported</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
     </div>
 
     <div class="page" id="page-settings" data-page="settings" hidden>
       <h1 id="settings-title" tabindex="-1">Settings</h1>
-    <section aria-labelledby="data-h">
-      <h2 id="data-h">Your data</h2>
-      <div class="card">
-        <p class="subtle">Everything is stored on this machine, with folio and account numbers cut to their last four characters.
-          Export it as one file, or remove it all (the audit log stays).</p>
-        <div class="upload">
-          <a class="btn" id="export-data" href="/api/export" download>Export all data</a>
-          <button type="button" class="btn" id="delete-data">Delete all data…</button>
+      <section aria-labelledby="data-h">
+        <h2 id="data-h">Your data</h2>
+        <div class="card">
+          <p class="subtle">Everything is stored on this machine, with folio and account numbers cut to their last four characters.
+            Export it as one file, or remove it all (the audit log stays).</p>
+          <div class="upload">
+            <a class="btn" id="export-data" href="/api/export" download>Export all data</a>
+            <button type="button" class="btn" id="delete-data">Delete all data…</button>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
     </div>
     </main>
   </div>

@@ -186,3 +186,21 @@ def test_hidden_attribute_always_wins_over_display_rules():
 
 def test_links_use_the_theme_colour():
     assert re.search(r"^a \{ color: var\(--accent\); \}", (STATIC / "app.css").read_text(), re.M)
+
+
+def test_overview_has_its_panels_and_links_to_the_pages_behind_them():
+    html = (STATIC / "index.html").read_text()
+    start = html.index('id="page-overview"')
+    overview = html[start:html.index('id="page-holdings"')]
+    for panel in ("totals", "prices-bar", "fresh-section", "prev-section", "complete-section", "alloc-section", "conc-section"):
+        assert f'id="{panel}"' in overview, f"Overview lost its {panel} panel"
+    for target in ("#/imports", "#/holdings", "#/performance"):
+        assert f'href="{target}"' in overview, f"Overview has no link to {target}"
+    assert overview.index('id="totals"') < overview.index('id="fresh-section"') < overview.index('id="prev-section"') \
+        < overview.index('id="complete-section"') < overview.index('id="alloc-section"')
+
+
+def test_data_quality_lists_what_needs_attention_first_and_folds_the_rest():
+    js = (STATIC / "app.js").read_text()
+    assert "failing.map(checkItem)" in js and "passing.map(checkItem)" in js
+    assert 'id="completeness-ok"' in (STATIC / "index.html").read_text()

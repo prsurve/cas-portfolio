@@ -214,9 +214,10 @@ function renderHistory(points) {
 
 // ---- completeness ------------------------------------------------------------------
 
+const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
 function completenessChecks(c) {
   const checks = [];  // [ok, text, detail?]
-  const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
   if (c.demat) {
     const d = c.demat;
     if (!d.available) {
@@ -269,15 +270,77 @@ function completenessChecks(c) {
   return checks;
 }
 
+function checkItem([ok, text, detail]) {
+  return el("li", { class: ok ? "ok" : "warn" },
+    el("span", { class: "mark", "aria-hidden": "true" }, ok ? "✓" : "!"),
+    el("div", null,
+      el("span", { class: "sr-only" }, ok ? "OK: " : "Needs attention: "), text,
+      detail ? el("div", { class: "detail" }, detail) : null));
+}
+
+// What needs attention comes first and the passing checks fold away, so a clean portfolio is a single line.
 function renderCompleteness(p) {
   const checks = completenessChecks(p.completeness);
   document.getElementById("complete-section").hidden = checks.length === 0;
-  document.getElementById("completeness").replaceChildren(...checks.map(([ok, text, detail]) =>
-    el("li", { class: ok ? "ok" : "warn" },
-      el("span", { class: "mark", "aria-hidden": "true" }, ok ? "✓" : "!"),
-      el("div", null,
-        el("span", { class: "sr-only" }, ok ? "OK: " : "Needs attention: "), text,
-        detail ? el("div", { class: "detail" }, detail) : null))));
+  const failing = checks.filter((c) => !c[0]), passing = checks.filter((c) => c[0]);
+  document.getElementById("completeness-summary").textContent = failing.length === 0
+    ? "All checks passed. Every number below is backed by what the statements printed."
+    : `${plural(failing.length, "thing")} to look at. The figures they affect are less certain until fixed.`;
+  document.getElementById("completeness").replaceChildren(...failing.map(checkItem));
+  const folded = document.getElementById("completeness-ok");
+  folded.hidden = passing.length === 0;
+  document.getElementById("completeness-ok-summary").textContent = `${passing.length} ${passing.length === 1 ? "check" : "checks"} passed`;
+  document.getElementById("completeness-passed").replaceChildren(...passing.map(checkItem));
+}
+
+// How old each source is. A figure is only as current as its statement, so say so beside the totals.
+function freshnessChecks(p) {
+  const rows = [];
+  for (const [label, s] of [["Stocks and ETFs (demat statement)", p.statements.demat], ["Mutual funds", p.statements.mf]]) {
+    if (!s) continue;
+    rows.push([!s.stale, `${label}: statement dated ${day(s.period_to)}, ${plural(s.age_days, "day")} old.`,
+      s.stale ? "Older than this app's limit. Upload a newer statement; the values above are as of that date." : null]);
+  }
+  const dates = [...p.stocks, ...p.funds].map((h) => h.latest && h.latest.price_date).filter(Boolean).sort();
+  rows.push(dates.length === 0
+    ? [false, "No latest prices yet.", "Use Refresh prices. Until then every value is a statement value."]
+    : [true, `Latest prices: newest is from ${day(dates[dates.length - 1])}, oldest ${day(dates[0])}.`,
+        "From AMFI (fund NAVs) and NSE or BSE closing prices. Shown beside statement values, never added into them."]);
+  return rows;
+}
+
+function renderFreshness(p) {
+  const rows = freshnessChecks(p);
+  document.getElementById("fresh-section").hidden = rows.length === 0;
+  document.getElementById("freshness").replaceChildren(...rows.map(checkItem));
+}
+
+// The Overview's short version of the comparison: the two latest statements, the biggest movers, a link for the rest.
+let lastOverviewKey = null;
+async function renderOverviewChange(points) {
+  const section = document.getElementById("prev-section");
+  section.hidden = points.length < 2;
+  if (points.length < 2) return;
+  const key = JSON.stringify(points.map((pt) => [pt.date, pt.value]));
+  if (key === lastOverviewKey) return;
+  try {
+    const r = await api("/api/changes");
+    const total = r.demat.totals.change + r.funds.totals.change;
+    document.getElementById("prev-summary").replaceChildren(
+      `${day(r.from)} to ${day(r.to)}: your holdings moved by `, el("strong", { class: signClass(total) }, money(total)),
+      `. Buying and selling account for ${money(r.demat.totals.quantity_effect + r.funds.totals.quantity_effect)}, ` +
+      `price moves for ${money(r.demat.totals.price_effect + r.funds.totals.price_effect)}.`);
+    const rows = [...r.demat.changes, ...r.funds.changes]
+      .map((c) => ({ ...c, change: c.value_after - c.value_before }))
+      .sort((a, b) => Math.abs(b.change) - Math.abs(a.change)).slice(0, 5);
+    document.getElementById("prev-list").replaceChildren(...rows.map((c) => el("li", null,
+      el("span", null, c.name, el("span", { class: "subtle" }, ` · ${CHANGE_KINDS[c.kind] || c.kind}`)),
+      el("span", { class: `num ${signClass(c.change)}` }, money(c.change)))));
+    lastOverviewKey = key;  // only a success is remembered
+  } catch (err) {
+    document.getElementById("prev-summary").textContent = `Could not compare: ${err.message}`;
+    document.getElementById("prev-list").replaceChildren();
+  }
 }
 
 // ---- changes between statements ---------------------------------------------------
@@ -708,6 +771,8 @@ async function load() {
     document.getElementById("prices-bar").hidden = empty;
     renderTotals(portfolio);
     renderCompleteness(portfolio);
+    renderFreshness(portfolio);
+    renderOverviewChange(history.points);
     renderHistory(history.points);
     setupChanges(history.points);
     renderAllocation(portfolio);
