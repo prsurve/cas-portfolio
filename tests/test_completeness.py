@@ -137,4 +137,4 @@ def test_stock_without_a_known_symbol(store, demat_data):
 
 def test_empty(store):
     assert build_view(store, today=TODAY)["completeness"] == {
-        "demat": None, "funds": None, "stocks": None}
+        "demat": None, "funds": None, "stocks": None, "holdings": None}

@@ -175,7 +175,7 @@ def test_latest_value_next_to_statement_value(store, mf_data):
     v = _priced(store, mf_data, "1;INF879O01027;-;Flexi Cap;;;90.0000;26-Oct-2026")
     flexi = next(f for f in v["funds"] if f["isin"] == "INF879O01027")
     assert flexi["value"] == 8840  # statement value unchanged
-    assert flexi["latest"] == {"nav": 90, "nav_date": "2026-10-26", "source": "AMFI", "value": 9945,
+    assert flexi["latest"] == {"price": 90, "price_date": "2026-10-26", "source": "AMFI", "value": 9945,
                                "change": 1105, "change_pct": 12.5, "days_old": 1, "stale": False}
     liquid = next(f for f in v["funds"] if f["isin"] == "INF179K01VQ6")
     assert liquid["latest"] is None  # no NAV found: shown as missing, not estimated
@@ -224,7 +224,11 @@ def api(tmp_path, mf_data):
     cas.save(store, cas.from_mf_data(mf_data), "cams")
     state = {"fetch": lambda: SAMPLE}
     import portfolio.app as app_module
-    client = TestClient(app_module.create_app(settings, store, nav_fetcher=lambda: state["fetch"]()))
+    def no_exchange(exchange):
+        raise AssertionError("these tests must never reach the exchanges")
+
+    client = TestClient(app_module.create_app(settings, store, nav_fetcher=lambda: state["fetch"](),
+                                              exchange_fetcher=no_exchange))
     return client, store, settings, state
 
 
@@ -235,9 +239,10 @@ def test_refresh_endpoint(api):
     client, store, _, _ = api
     assert client.post("/api/prices/refresh").status_code == 403  # needs the CSRF header
     r = client.post("/api/prices/refresh", headers=CSRF)
-    assert r.status_code == 200 and r.json()["priced"] == 1 and r.json()["latest_date"] == "2026-10-26"
+    assert r.status_code == 200 and r.json()["nav"]["priced"] == 1 and r.json()["nav"]["latest_date"] == "2026-10-26"
+    assert r.json()["errors"] == {}
     flexi = next(f for f in client.get("/api/portfolio").json()["funds"] if f["isin"] == "INF879O01027")
-    assert flexi["latest"]["nav"] == 90
+    assert flexi["latest"]["price"] == 90
     from portfolio.store import audit_log
     with store.engine.connect() as conn:
         events = [(e.event, e.detail) for e in conn.execute(select(audit_log))]
@@ -255,7 +260,7 @@ def test_refresh_failure_is_a_clear_502_and_keeps_old_prices(api):
     r = client.post("/api/prices/refresh", headers=CSRF)
     assert r.status_code == 502 and "AMFI" in r.json()["detail"]
     assert next(f for f in client.get("/api/portfolio").json()["funds"]
-                if f["isin"] == "INF879O01027")["latest"]["nav"] == 90
+                if f["isin"] == "INF879O01027")["latest"]["price"] == 90
 
 
 def test_refresh_can_be_switched_off(tmp_path, mf_data):

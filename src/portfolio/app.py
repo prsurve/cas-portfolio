@@ -21,7 +21,8 @@ from portfolio.importers.cas import PARSER_VERSION, CasImportError, parse_pdf_by
 from portfolio.changes import compare
 from portfolio.history import value_history
 from portfolio.portfolio_view import build_view
-from portfolio.prices import PriceFetchError, fetch_navall, refresh_nav
+from portfolio.prices import PriceFetchError
+from portfolio.refresh import refresh_all
 from portfolio.store import Store, as_utc
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -37,7 +38,8 @@ SECURITY_HEADERS = {
 
 
 def create_app(settings: Settings | None = None, store: Store | None = None,
-               nav_fetcher: Callable[[], str] | None = None) -> FastAPI:
+               nav_fetcher: Callable[[], str] | None = None,
+               exchange_fetcher: Callable[[str], Any] | None = None) -> FastAPI:
     settings = settings or get_settings()
     if store is None:
         if settings.database_url.startswith("sqlite:///./"):
@@ -119,16 +121,20 @@ def create_app(settings: Settings | None = None, store: Store | None = None,
 
     @app.post("/api/prices/refresh")
     async def refresh_prices() -> dict[str, Any]:
-        """Download AMFI's public NAV file and store the latest NAV for the funds you hold."""
+        """Download the public price files (AMFI fund NAVs; NSE then BSE closes) for what you hold."""
         if not settings.fetch_prices:
             raise HTTPException(403, "Price fetching is turned off (PORTFOLIO_FETCH_PRICES=false).")
         try:
-            report = await run_in_threadpool(refresh_nav, store, nav_fetcher or fetch_navall)
+            result = await run_in_threadpool(refresh_all, store, nav_fetcher, exchange_fetcher)
         except PriceFetchError as exc:
-            store.audit("prices_failed", "AMFI")
+            store.audit("prices_failed", "all sources")
             raise HTTPException(502, str(exc)) from exc
-        store.audit("prices_refreshed", f"AMFI priced {report['priced']} of {report['held']}")
-        return report
+        parts = [f"{label} priced {r['priced']} of {r['held']}"
+                 for label, r in (("AMFI", result["nav"]), ("exchange", result["exchange"])) if r and r["held"]]
+        store.audit("prices_refreshed", "; ".join(parts) or "nothing to price")
+        if result["errors"]:
+            store.audit("prices_failed", ",".join(sorted(result["errors"])))
+        return result
 
     @app.get("/api/changes")
     def changes(from_date: date | None = None, to_date: date | None = None) -> dict[str, Any]:
