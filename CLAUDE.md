@@ -50,6 +50,7 @@ There is no `--reload`, so restart the server after code changes.
   - Mutual funds come from exactly one statement: the newest of (latest CAMS/KFintech, latest NSDL/CDSL) that has fund rows. On the same date, CAMS/KFintech wins because it has transactions.
 - **Merge keys:** demat holdings merge by ISIN across accounts; funds merge by ISIN, falling back to scheme name, across folios.
 - **Money:** always `Decimal`, converted to float only in `_jsonable`. Statement values are as of the statement date; there are no live prices.
+  - **Storage:** use the `Money` column type (`money.py`) for amounts and quantities. On SQLite it stores integer millionths, because a NUMERIC column would store a float. Older databases are converted once on open (`PRAGMA user_version` 0 → 1). Values that need more than 6 decimals or exceed ~9.2 trillion are not supported on SQLite.
 - **Fund gains:** computed only over funds that have a cost (`costed_value - cost`). Funds without cost are counted in `mf_without_cost`.
 - **Re-imports:** the same file hash is a no-op unless it was stored with an older `PARSER_VERSION`, in which case it is replaced. **Bump `PARSER_VERSION` whenever parsing changes what gets imported**, otherwise re-uploads are silently ignored.
 - **Stored identifiers:** only the last 4 characters of folio and client IDs (`mask_id`). No PAN, name, address, phone or email.

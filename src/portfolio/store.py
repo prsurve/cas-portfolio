@@ -10,14 +10,24 @@ from datetime import date, datetime, timezone
 from typing import Any
 
 from sqlalchemy import (
-    Column, Date, DateTime, ForeignKey, Integer, MetaData, Numeric, String, Table, Text,
+    Column, Date, DateTime, ForeignKey, Integer, MetaData, String, Table, Text,
     create_engine, delete, inspect, insert, select, text,
 )
 from sqlalchemy.engine import Engine
 
+from portfolio.money import Money
+
 metadata = MetaData()
 
-NUM = Numeric(24, 6, asdecimal=True)
+# SQLite schema version (PRAGMA user_version). 1 = money stored as exact integers.
+SQLITE_SCHEMA_VERSION = 1
+MONEY_COLUMNS = {
+    "stock_holdings": ("quantity", "price", "value"),
+    "mf_holdings": ("units", "nav", "cost", "value"),
+    "mf_transactions": ("amount", "units", "nav", "balance"),
+}
+
+NUM = Money()
 
 # kind: "mf" (CAMS/KFintech) or "demat" (NSDL/CDSL)
 statements = Table(
@@ -136,6 +146,21 @@ class Store:
             for table, column, ddl in added:
                 if column not in {c["name"] for c in inspector.get_columns(table)}:
                     conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}"))
+            if self.engine.dialect.name == "sqlite":
+                self._migrate_sqlite_money(conn)
+
+    def _migrate_sqlite_money(self, conn: Any) -> None:
+        """Databases from before exact storage hold floats. Convert them once to
+        millionths (rounding recovers the original 6-decimal value), then mark
+        the database so the conversion never runs twice."""
+        if conn.execute(text("PRAGMA user_version")).scalar() >= SQLITE_SCHEMA_VERSION:
+            return
+        for table, columns in MONEY_COLUMNS.items():
+            for column in columns:
+                conn.execute(text(
+                    f"UPDATE {table} SET {column} = CAST(ROUND({column} * 1000000) AS INTEGER) "
+                    f"WHERE {column} IS NOT NULL"))
+        conn.execute(text(f"PRAGMA user_version = {SQLITE_SCHEMA_VERSION}"))
 
     def audit(self, event: str, detail: str | None = None) -> None:
         with self.engine.begin() as conn:
