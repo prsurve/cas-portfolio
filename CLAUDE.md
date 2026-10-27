@@ -27,7 +27,7 @@ PYTHONPATH=src .venv/bin/uvicorn portfolio.app:create_app --factory --host 127.0
 PYTHONPATH=src .venv/bin/python -m portfolio.importers.cas statement.pdf [--save] [--diagnose]
 ```
 
-There is no `--reload`, so restart the server after code changes.
+There is no `--reload`, so restart the server after code changes. (Users of the optional systemd setup: `systemctl --user restart portfolio.service`.) A server started before a merge answers 404 for new routes, so restart after every pull. The page files are read from disk on each request, so a running server can show a newer page than its API supports until restarted.
 
 ## Layout
 
@@ -36,6 +36,7 @@ There is no `--reload`, so restart the server after code changes.
 | `src/portfolio/importers/cas.py` | Parses PDFs via `casparser` into `ParsedStatement`. Also holds the CLI, `diagnose`, ISIN enrichment, broker/AMC mapping and `PARSER_VERSION` |
 | `src/portfolio/store.py` | SQLAlchemy Core schema plus a tiny `_migrate()` that adds columns; SQLite now, Postgres-compatible |
 | `src/portfolio/portfolio_view.py` | Dashboard: `compute_view()` (Decimal) and `build_view()` (JSON floats): merges by ISIN or scheme, computes totals and allocation, picks the fund source |
+| `deploy/`, `scripts/install_systemd.sh` | **Optional, for other users; the maintainer does not run the app as a service.** systemd **user** units (dashboard bound to 127.0.0.1, daily backup timer, price refresh timer). The installer refuses while port 8000 is in use and has `--render DIR` for testing |
 | `src/portfolio/backup.py` | SQLite backups: `create_backup()` (online backup API, verified, optional gpg encryption to a public key, retention), `restore_backup()`, `check_database()`, CLI (`python -m portfolio.backup`) |
 | `src/portfolio/prices.py` | AMFI `NAVAll.txt`: pure parser, fixed-URL fetcher, `refresh_nav()` (stores only held ISINs, newest price), CLI (`python -m portfolio.prices`) |
 | `src/portfolio/bhavcopy.py` | NSE zip / BSE CSV end-of-day files: dated fixed URLs walked back over weekends and holidays, parser, `refresh_exchange()` (NSE first; BSE only for ISINs NSE lacks) |
@@ -101,7 +102,7 @@ Rough priority order:
 5. **Vested (US stocks):** a CSV/PDF statement import with a USD→INR rate. No public API exists.
 6. **Personal-data guard:** a test or pre-commit hook that fails on PAN-shaped strings, long account IDs or `*.pdf` and `*.db` files in the commit.
 7. **App authentication** beyond Cloudflare Access (for example a passkey or single password), if it is ever exposed differently.
-8. **Run as a service:** a systemd unit for uvicorn on the Pi, a timer for `python -m portfolio.backup create` and `python -m portfolio.prices`, and copying the encrypted backups off the device. (Backup, restore, integrity check and `/healthz` are done.)
+8. **Off-device backups:** copy the encrypted `.gpg` files off the Pi. (An optional systemd setup for other users exists in `deploy/`; the maintainer runs the app, backups and price refresh by hand. Don't install it on the maintainer's machine.)
 9. **Allocation charts:** allocation is currently shown as tables.
 10. **Coverage of the AMC map:** extend `AMC_BY_ISSUER` when funds show "Unknown" under allocation by AMC.
 11. **NSDL statements:** parsing has only been exercised against a real CDSL statement and synthetic NSDL fixtures. Verify with a real NSDL CAS.

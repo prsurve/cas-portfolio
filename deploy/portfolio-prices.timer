@@ -1,0 +1,13 @@
+[Unit]
+Description=Refresh portfolio prices after the Indian market closes
+
+[Timer]
+# NSE and BSE publish end-of-day files in the evening; AMFI publishes NAVs later in the night, so the
+# morning run picks those up (and the weekend's). A missed run happens once the Pi is back.
+OnCalendar=Mon..Fri *-*-* 20:00:00 Asia/Kolkata
+OnCalendar=*-*-* 08:00:00 Asia/Kolkata
+Persistent=true
+RandomizedDelaySec=5min
+
+[Install]
+WantedBy=timers.target

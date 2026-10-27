@@ -50,6 +50,33 @@ Open http://127.0.0.1:8000.
 
 Settings are optional; see [.env.example](.env.example). The database is `data/portfolio.db` by default.
 
+## Optional: run as a service
+
+You don't need this. Running the app by hand (see **Run** above) is the normal way, and nothing here is installed unless you run the installer. It is for people who want the dashboard always on, restarted after a crash or reboot, with the backup and price refresh scheduled. It uses systemd **user** units: no root is needed for them, and the dashboard still listens on `127.0.0.1` only.
+
+```bash
+# stop any server you started by hand first (Ctrl+C): it holds port 8000
+scripts/install_systemd.sh
+sudo loginctl enable-linger "$USER"    # once: lets user services run at boot and after you log out
+```
+
+| Unit | What it does |
+|---|---|
+| `portfolio.service` | the dashboard, restarted if it fails; files it creates are readable by you only |
+| `portfolio-backup.timer` | a database backup at about 02:30 every day (missed runs happen when the Pi is back) |
+| `portfolio-prices.timer` | refreshes public prices at 20:00 Indian time on weekdays and at 08:00 daily |
+
+```bash
+systemctl --user status portfolio.service            # is it running?
+journalctl --user -u portfolio.service -f            # its log
+systemctl --user list-timers 'portfolio-*'           # when the jobs run next
+systemctl --user restart portfolio.service           # after pulling new code
+curl -s localhost:8000/healthz                       # ok / degraded, and the age of the last backup
+```
+
+There is no `--reload`, so **restart the service after every code change** (`git pull` alone is not enough). To stop using it: `systemctl --user disable --now portfolio.service portfolio-backup.timer portfolio-prices.timer`.
+If you keep the app offline (`PORTFOLIO_FETCH_PRICES=false`), disable `portfolio-prices.timer` too, since the refresh then exits with an error.
+
 ## Upload a statement
 
 1. Choose the PDF and enter its password, then click **Upload**. If the password fails as typed, it's retried in capitals.
@@ -83,7 +110,7 @@ PYTHONPATH=src .venv/bin/python -m portfolio.backup restore data/backups/portfol
 - **Keep copies off the device, encrypted.** Set `PORTFOLIO_BACKUP_GPG_RECIPIENT` to a gpg public key and backups are encrypted to it; the plaintext copy is deleted, and if encryption fails none is left behind. The Pi needs only the public key. Keep the private key somewhere else: you need it to restore. Then copy the `.gpg` files anywhere.
 - **Restore:** stop the app first. The backup is verified before anything is replaced, an existing database is only replaced with `--force`, and it is kept beside the restored one (`.before-restore-<time>`).
 - `GET /healthz` reports `ok` or `degraded` (HTTP 503), the database schema version and the age of the newest backup in days. It shows no portfolio data, so a monitor can poll it.
-- Backing up on a schedule is up to you for now (for example a daily cron job running the `create` command).
+- Run `create` by hand whenever you like. If you use the optional service installer below, it schedules a daily backup too. Copying the encrypted `.gpg` files off the device is up to you.
 
 ## Privacy
 
