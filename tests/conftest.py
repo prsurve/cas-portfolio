@@ -93,3 +93,41 @@ def demat_data():
         investor_info=INVESTOR,
         file_type=FileType.CDSL,
     )
+
+
+from datetime import date as _date  # noqa: E402
+Y0, Y1, Y2 = _date(2025, 1, 1), _date(2026, 1, 1), _date(2027, 1, 1)  # 365 days apart each
+
+
+@pytest.fixture
+def populated(tmp_path):
+    """A CAMS-style statement with two funds that can be worked out and one that cannot (history incomplete)."""
+    from casparser.enums import CASFileType, FileType, TransactionType
+    from casparser.types import CASData, Folio, InvestorInfo, StatementPeriod, TransactionData
+    from portfolio.importers import cas
+    from portfolio.portfolio_view import compute_view
+    from portfolio.store import Store
+
+    def scheme(name, isin, units, nav, cost, txns, opening=0):
+        from casparser.types import Scheme, SchemeValuation
+        return Scheme(scheme=name, rta_code="X1", rta="CAMS", type="EQUITY", isin=isin, amfi="1", open=D(opening), close=D(units),
+                      close_calculated=D(units), valuation=SchemeValuation(date=_date(2027, 1, 1), nav=D(nav), cost=D(cost), value=D(units) * D(nav)),
+                      transactions=txns)
+
+    def t(day, amount, units, bal, kind=TransactionType.PURCHASE):
+        return TransactionData(date=day, description="x", amount=D(amount), units=D(units), nav=D(100), balance=D(bal), type=kind)
+
+    data = CASData(
+        statement_period=StatementPeriod(**{"from": "01-Jan-2025", "to": "01-Jan-2027"}),
+        folios=[Folio(folio="1111/22", amc="A Mutual Fund", PAN="ABCDE1234F", schemes=[
+            scheme("Fund One", "INF000000001", "6", "110", "1000", [t(Y0, 1000, 10, 10), t(Y1, -500, -4, 6, TransactionType.REDEMPTION)]),
+            scheme("Fund Two", "INF000000002", "2", "50", "0", [t(Y1, 90, 1, 1), t(Y1, 10, 1, 2)]),
+            scheme("Fund Three", "INF000000003", "5", "20", "400", [t(Y1, 100, 1, 6)], opening=5),
+        ])],
+        investor_info=InvestorInfo(name="TEST USER", email="t@example.com", address="x", mobile="9999999999"),
+        cas_type=CASFileType.DETAILED, file_type=FileType.CAMS)
+    store = Store.from_url(f"sqlite:///{tmp_path}/r.db")
+    cas.save(store, cas.from_mf_data(data), "r" * 64)
+    return store, compute_view(store, today=_date(2027, 1, 2))
+
+

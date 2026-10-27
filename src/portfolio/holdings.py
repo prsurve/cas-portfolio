@@ -16,6 +16,7 @@ from decimal import Decimal
 from typing import Any
 
 from portfolio.portfolio_view import ZERO, _jsonable, _pct, compute_view
+from portfolio.returns import fund_return, transactions_by_fund, valuation_date
 from portfolio.store import Store
 
 ASSET_CLASS = {"equity": "Stock", "fund": "ETF or demat fund", "bond": "Bond or SGB"}
@@ -144,11 +145,19 @@ def holding_detail(store: Store, key: str, stale_after_days: int = 45, today: da
             calcs.append(_calc(
                 "cost", "Amount invested", None, "inr", "Not available.", source=info["issuer"], as_of=as_of,
                 limitation="This statement prints no amount invested for the fund, so no gain is shown and the fund is left out of the gain totals."))
-        if fund["history"] != "complete":
-            notes.append("The transactions on the statement do not describe the whole holding, so a return over time (XIRR) cannot be worked out. "
-                         "Upload a CAMS or KFintech statement covering the full history to fill this in."
-                         if fund["history"] == "incomplete" else
-                         "No transaction history was read for this fund, so a return over time (XIRR) cannot be worked out.")
+        ret = fund_return(fund, transactions_by_fund(store, view).get(fund["key"], []), valuation_date(view) or as_of)
+        if ret["status"] == "ok":
+            calcs.append(_calc(
+                "xirr", "Return since the first transaction (XIRR)", ret["xirr"] * 100, "percent",
+                "The yearly rate at which the money put in, the money taken out and the statement value balance. "
+                "It is money-weighted and covers only the history on this statement.",
+                inputs=[_input("Money put in", ret["invested"], "inr"), _input("Money taken out", ret["withdrawn"], "inr"),
+                        _input("Statement value", ret["value"], "inr"), _input("Days from the first transaction", ret["days"], "quantity")],
+                source=info["issuer"], as_of=ret["valuation_date"],
+                limitation="Less than a year of history, so an annualised rate can mislead." if ret["short_history"] else None))
+        else:
+            calcs.append(_calc("xirr", "Return since the first transaction (XIRR)", None, "percent", "Not available.",
+                               source=info["issuer"], as_of=as_of, limitation=ret["reason"] + " Nothing is estimated."))
         calcs.append(_latest_calc("folio", fund["units"], fund["value"], fund["latest"]))
 
     if stock is not None and fund is not None:

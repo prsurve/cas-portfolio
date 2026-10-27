@@ -87,12 +87,28 @@ def test_fund_without_cost_says_no_gain_is_shown(tmp_path, demat_data):
     assert calc(with_cost, "cost")["value"] == 3000 and calc(with_cost, "gain")["value"] == 1000
 
 
-def test_fund_history_note_follows_what_the_transactions_cover(store):
-    d = holding_detail(store, PPFCF, today=TODAY)
-    history = d["components"][0]["history"]
-    assert history in ("complete", "incomplete", "unknown")
-    has_note = any("XIRR" in n for n in d["notes"])
-    assert has_note == (history != "complete"), "a note about missing returns appears exactly when history is not complete"
+def test_xirr_card_for_a_fund_that_cannot_be_worked_out_says_why(store):
+    """In this fixture the units bought do not add up to the units held, so no rate is given and nothing is estimated."""
+    card = calc(holding_detail(store, PPFCF, today=TODAY), "xirr")
+    assert card["value"] is None and "do not add up" in card["limitation"] and "Nothing is estimated" in card["limitation"]
+
+
+def test_xirr_card_for_a_fund_with_complete_history_shows_its_inputs(populated):
+    from portfolio.portfolio_view import compute_view  # noqa: F401  (the fixture builds the store from a CAMS statement)
+    store, _ = populated
+    d = holding_detail(store, "INF000000001", today=date(2027, 1, 2))
+    card = calc(d, "xirr")
+    assert card["unit"] == "percent" and card["value"] == pytest.approx(10.0, abs=1e-4)  # 1000 in, 500 out a year on, 660 left
+    inputs = {i["label"]: i["value"] for i in card["inputs"]}
+    assert inputs["Money put in"] == 1000 and inputs["Money taken out"] == 500 and inputs["Statement value"] == 660
+    assert inputs["Days from the first transaction"] == 730 and card["limitation"] is None
+    assert not any("XIRR" in n for n in d["notes"]), "the card carries the explanation now"
+
+
+def test_xirr_card_for_an_incomplete_history_names_the_gap(populated):
+    store, _ = populated
+    card = calc(holding_detail(store, "INF000000003", today=date(2027, 1, 2)), "xirr")
+    assert card["value"] is None and "do not describe the whole holding" in card["limitation"]
 
 
 def test_latest_value_is_shown_beside_the_statement_value_with_source_and_date(store):
