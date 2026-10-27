@@ -28,6 +28,7 @@ from portfolio.store import Store, as_utc
 
 STATIC_DIR = Path(__file__).parent / "static"
 PASSWORD_HEADER = "X-PDF-Password"
+DELETE_PHRASE = "delete all data"
 
 SECURITY_HEADERS = {
     "Content-Security-Policy": "default-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
@@ -121,6 +122,23 @@ def create_app(settings: Settings | None = None, store: Store | None = None,
             raise HTTPException(404, "Statement not found")
         store.audit("statement_deleted", f"#{statement_id}")
         return {"status": "deleted"}
+
+    @app.get("/api/export")
+    def export_data() -> JSONResponse:
+        """Everything stored, as one JSON file to download. Masked IDs only: that is all the database holds."""
+        name = f"portfolio-export-{date.today().isoformat()}.json"
+        return JSONResponse(store.export_all(), headers={"Content-Disposition": f'attachment; filename="{name}"'})
+
+    @app.delete("/api/data")
+    async def delete_data(request: Request) -> dict[str, Any]:
+        """Wipe all statements and prices. Needs the typed phrase, so a stray call cannot do it."""
+        try:
+            body = await request.json()
+        except ValueError:
+            body = None
+        if not isinstance(body, dict) or body.get("confirm") != DELETE_PHRASE:
+            raise HTTPException(400, f'Send {{"confirm": "{DELETE_PHRASE}"}} to delete everything')
+        return {"status": "deleted", "removed": store.delete_all()}
 
     @app.get("/api/portfolio")
     def portfolio() -> dict[str, Any]:

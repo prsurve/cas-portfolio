@@ -7,6 +7,7 @@ addresses and full folio/client numbers are never written.
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import (
@@ -320,3 +321,31 @@ class Store:
             for table in CHILD_TABLES:
                 conn.execute(delete(table).where(table.c.statement_id == statement_id))
             return (conn.execute(delete(statements).where(statements.c.id == statement_id)).rowcount or 0) > 0
+
+    def export_all(self) -> dict[str, Any]:
+        """Every table as JSON-safe rows (money as exact decimal strings). Only masked IDs are stored, so only they appear."""
+        out: dict[str, Any] = {"exported_at": utcnow().isoformat(), "schema_version": self.schema_version()}
+        with self.engine.connect() as conn:
+            for table in (statements, stock_holdings, mf_holdings, mf_transactions, statement_accounts, prices, audit_log):
+                out[table.name] = [
+                    {k: _export_value(v) for k, v in row.items()}
+                    for row in conn.execute(select(table).order_by(*table.primary_key.columns)).mappings()
+                ]
+        return out
+
+    def delete_all(self) -> dict[str, int]:
+        """Remove every statement, holding, transaction and price. The audit log stays, with one row recording this."""
+        removed: dict[str, int] = {}
+        with self.engine.begin() as conn:
+            for table in (*CHILD_TABLES, statements, prices):
+                removed[table.name] = conn.execute(delete(table)).rowcount or 0
+            conn.execute(insert(audit_log).values(ts=utcnow(), event="data_deleted", detail=f"{removed['statements']} statements"))
+        return removed
+
+
+def _export_value(value: Any) -> Any:
+    if isinstance(value, Decimal):
+        return format(value, "f")
+    if isinstance(value, (date, datetime)):
+        return value.isoformat()
+    return value
