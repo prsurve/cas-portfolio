@@ -92,6 +92,7 @@ src/portfolio/
   store.py             schema + data access (SQLite; Postgres-compatible)
   portfolio_view.py    dashboard numbers: merge by ISIN/scheme, totals, allocation
   history.py           value at each statement date (no double counting)
+  changes.py           what changed between two statement dates
   app.py               FastAPI: upload, statements, portfolio JSON
   static/              dashboard page (vanilla JS)
 ```

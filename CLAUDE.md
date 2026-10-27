@@ -35,9 +35,10 @@ There is no `--reload`, so restart the server after code changes.
 |---|---|
 | `src/portfolio/importers/cas.py` | Parses PDFs via `casparser` into `ParsedStatement`. Also holds the CLI, `diagnose`, ISIN enrichment, broker/AMC mapping and `PARSER_VERSION` |
 | `src/portfolio/store.py` | SQLAlchemy Core schema plus a tiny `_migrate()` that adds columns; SQLite now, Postgres-compatible |
-| `src/portfolio/portfolio_view.py` | Dashboard JSON: merges by ISIN or scheme, computes totals and allocation, picks the fund source |
+| `src/portfolio/portfolio_view.py` | Dashboard: `compute_view()` (Decimal) and `build_view()` (JSON floats): merges by ISIN or scheme, computes totals and allocation, picks the fund source |
+| `src/portfolio/changes.py` | `compare()`: what differs between two statement dates (two `compute_view(as_of=…)` results). Each change splits into a quantity effect and a price effect that sum exactly to the value change |
 | `src/portfolio/history.py` | `value_history()`: one point per statement date, each built with `build_view(as_of=…)` so the no-double-count rules hold |
-| `src/portfolio/app.py` | FastAPI: `POST/GET/DELETE /api/statements`, `GET /api/portfolio`, `GET /api/history`, static page |
+| `src/portfolio/app.py` | FastAPI: `POST/GET/DELETE /api/statements`, `GET /api/portfolio`, `GET /api/history`, `GET /api/changes`, static page |
 | `src/portfolio/static/` | Vanilla JS/CSS page. DOM is built with `el()`; never use `innerHTML`, because the strict CSP blocks inline scripts |
 | `tests/conftest.py` | Fixtures built from **casparser's own pydantic models** (`CASData`, `NSDLCASData`) |
 
