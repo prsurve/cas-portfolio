@@ -77,7 +77,13 @@
     day: (iso) => (iso ? date.format(new Date(`${String(iso).slice(0, 10)}T00:00:00`)) : MISSING),
   };
 
-  const api = { matchesQuery, sortRows, csvCell, toCsv, debounce, fmt };
+  // "#/holdings" gives "holdings" if it is one of `pages`, otherwise null (so "#main" or a typo changes nothing).
+  function route(hash, pages) {
+    const m = /^#\/([a-z]+)\/?$/.exec(String(hash || ""));
+    return m && pages.includes(m[1]) ? m[1] : null;
+  }
+
+  const api = { matchesQuery, sortRows, csvCell, toCsv, debounce, fmt, route };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.PortfolioTools = api;
 })(typeof self !== "undefined" ? self : this);

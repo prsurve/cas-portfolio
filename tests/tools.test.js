@@ -88,4 +88,14 @@ assert.equal(T.toCsv(cols, []), 'Name,Qty,"Note, x"\r\n', "headers even when the
   assert.equal(F.day(""), "–");
 }
 
+// route: only known pages count, so "#main" or a typo changes nothing
+{
+  const pages = ["overview", "holdings"];
+  assert.equal(T.route("#/holdings", pages), "holdings");
+  assert.equal(T.route("#/holdings/", pages), "holdings");
+  for (const bad of ["", "#", "#main", "#/nope", "#/holdings/INE009A01021", "#/Holdings", null, undefined]) {
+    assert.equal(T.route(bad, pages), null, `ignored: ${bad}`);
+  }
+}
+
 console.log("ok");

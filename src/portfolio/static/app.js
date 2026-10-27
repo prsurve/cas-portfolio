@@ -680,6 +680,7 @@ function renderStatements(list) {
 function collectAlerts(p) {
   const alerts = [];
   const { demat, mf } = p.statements;
+  if (!mf && !demat) return alerts;  // the first-run steps on the Overview already say so
   if (!mf) alerts.push("No mutual fund data yet. Upload your NSDL/CDSL or CAMS/KFintech CAS.");
   if (!demat) alerts.push("No demat statement yet. Upload your NSDL or CDSL CAS for stocks and ETFs.");
   for (const [label, s] of [["Stock", demat], ["Mutual fund", mf]]) {
@@ -749,13 +750,15 @@ async function deleteAllData() {
 
 document.getElementById("delete-data").addEventListener("click", deleteAllData);
 document.getElementById("refresh-prices").addEventListener("click", refreshPrices);
+// Charts depend on their width, so they are drawn again when it changes and when their page is shown.
+const redrawSized = () => {
+  if (lastPortfolio) renderAllocation(lastPortfolio);
+  if (lastHistory) renderHistory(lastHistory);
+};
 let resizeTimer = null;
-window.addEventListener("resize", () => {  // segment widths change, so which labels fit does too
+window.addEventListener("resize", () => {
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => {
-    if (lastPortfolio) renderAllocation(lastPortfolio);
-    if (lastHistory) renderHistory(lastHistory);
-  }, 150);
+  resizeTimer = setTimeout(redrawSized, 150);
 });
 document.getElementById("chg-from").addEventListener("change", loadChanges);
 document.getElementById("chg-to").addEventListener("change", loadChanges);
@@ -778,4 +781,5 @@ document.getElementById("funds-csv").addEventListener("click", () => {
   if (!lastPortfolio || !lastPortfolio.statements.mf) return;
   downloadCsv(`mutual-funds-${lastPortfolio.statements.mf.period_to}.csv`, Tools.toCsv(FUND_CSV, visibleFunds(lastPortfolio)));
 });
+window.Nav.init(redrawSized);
 load();

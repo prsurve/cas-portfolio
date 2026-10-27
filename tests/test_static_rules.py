@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 
 STATIC = Path(__file__).resolve().parent.parent / "src" / "portfolio" / "static"
-JS = [STATIC / "app.js", STATIC / "tools.js"]
+JS = [STATIC / "app.js", STATIC / "tools.js", STATIC / "nav.js"]
 
 # Validated with the dataviz skill's scripts/validate_palette.js against this app's card surfaces
 # (adjacent pairs, light #ffffff and dark #1f1f1d). Change a hex and the check must be run again.
@@ -148,3 +148,41 @@ def test_new_install_shows_steps_and_load_errors_offer_a_retry():
     assert 'getElementById("empty-state").hidden = !empty' in js
     assert "Try again" in js and "showLoadError(err)" in js
     assert re.search(r'id="upload-result"[^>]*tabindex="-1"', html), "the upload result must be focusable so it can be announced"
+
+
+def test_shell_has_landmarks_skip_link_and_one_page_per_nav_link():
+    html = (STATIC / "index.html").read_text()
+    nav = (STATIC / "nav.js").read_text()
+    assert html.count("<main") == 1 and 'aria-label="Main"' in html and 'id="skip-link"' in html
+    links = re.findall(r'data-nav="(\w+)"', html)
+    pages = re.findall(r'class="page" id="page-(\w+)" data-page="\1" hidden', html)
+    assert links == pages and len(links) == len(set(links)) >= 5
+    declared = re.search(r"const PAGES = \[(.*?)\]", nav).group(1)
+    assert re.findall(r'"(\w+)"', declared) == links, "nav.js and index.html disagree about the pages"
+    for page in pages:  # each page has its own h1, which receives focus on navigation
+        assert f'<h1 id="{page}-title" tabindex="-1">' in html
+    assert html.count("<h1") == len(pages), "one h1 per page"
+    assert html.index("/static/tools.js") < html.index("/static/nav.js") < html.index("/static/app.js")
+
+
+def test_every_table_and_control_lives_inside_a_page():
+    """A section left outside a .page would show on every page."""
+    html = (STATIC / "index.html").read_text()
+    main = html[html.index("<main"):html.index("</main>")]
+    outside = re.sub(r'<div class="page".*?\n    </div>\n', "", main, flags=re.S)
+    assert "<section" not in outside and "<table" not in outside
+
+
+def test_nav_is_a_bottom_bar_on_phones_and_marks_the_current_page_without_colour_alone():
+    css = (STATIC / "app.css").read_text()
+    assert re.search(r"\.nav a\[aria-current=\"page\"\]\s*\{[^}]*font-weight:\s*600", css)
+    assert re.search(r"@media \(max-width: 640px\) \{\s*\.shell \{ display: block; \}.*?\.side \{ position: fixed", css, re.S)
+
+
+def test_hidden_attribute_always_wins_over_display_rules():
+    """Found by looking at the page: .tiles { display: grid } kept the empty install's totals on screen."""
+    assert re.search(r"\[hidden\]\s*\{\s*display:\s*none\s*!important", (STATIC / "app.css").read_text())
+
+
+def test_links_use_the_theme_colour():
+    assert re.search(r"^a \{ color: var\(--accent\); \}", (STATIC / "app.css").read_text(), re.M)
