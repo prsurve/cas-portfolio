@@ -149,63 +149,9 @@ function renderHistory(points) {
       p.mixed ? `Stocks and funds are ${p.spread_days} days apart` : p.mf_source ? `Funds from ${ISSUERS[p.mf_source]}` : null))));
 }
 
-// ---- completeness ------------------------------------------------------------------
+// ---- data quality: see confidence.js ----------------------------------------------
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
-
-function completenessChecks(c) {
-  const checks = [];  // [ok, text, detail?]
-  if (c.demat) {
-    const d = c.demat;
-    if (!d.available) {
-      checks.push([false, "Account totals were not stored for this demat statement.",
-        "Upload the same PDF again. It will be read with the current version and each account checked against its printed total."]);
-    } else if (d.all_match) {
-      checks.push([true, `All ${plural(d.accounts.length, "demat account")} add up to the totals printed on the statement.`]);
-    } else {
-      const bad = d.accounts.filter((a) => !a.ok);
-      checks.push([false, `${bad.length} of ${plural(d.accounts.length, "demat account")} do not add up to the statement total. ` +
-        `${money(d.imported_value)} of ${money(d.statement_total)} was read.`,
-        bad.map((a) => `${a.label} ${a.client || ""}: statement ${money(a.statement_total)}, read ${money(a.imported_value)}`).join(" · ")]);
-    }
-    if (d.available && d.folios) {
-      checks.push([d.folios.ok, d.folios.ok ? "Mutual fund folios add up to the statement total."
-        : `Mutual fund folios: statement ${money(d.folios.statement_total)}, read ${money(d.folios.imported_value)}.`]);
-    }
-  }
-  if (c.stocks && c.stocks.without_symbol) {
-    checks.push([false, `${plural(c.stocks.without_symbol, "stock")} of ${c.stocks.count} ${c.stocks.without_symbol === 1 ? "has" : "have"} no NSE symbol.`,
-      "They are shown by name. Latest prices are matched by ISIN, so a missing symbol does not affect them."]);
-  }
-  if (c.holdings) {
-    const h = c.holdings;
-    checks.push([h.without_price === 0, h.without_price === 0 ? `Every demat holding has a latest price.`
-      : h.priced === 0 ? "No latest prices yet."
-      : `${h.without_price} of ${h.count} demat holdings have no price newer than the statement.`,
-      h.without_price === 0 ? null : "Use Refresh prices. Unlisted or delisted securities have none; they show a dash and are never estimated."]);
-  }
-  if (c.funds) {
-    const f = c.funds;
-    checks.push([f.without_cost === 0, f.without_cost === 0 ? `All ${plural(f.count, "fund")} have a purchase cost.`
-      : `${f.without_cost} of ${plural(f.count, "fund")} ${f.without_cost === 1 ? "has" : "have"} no purchase cost, so no gain is shown for ${f.without_cost === 1 ? "it" : "them"}.`]);
-    checks.push([f.without_price === 0, f.without_price === 0 ? `Every fund has a latest NAV.`
-      : f.priced === 0 ? "No latest NAVs yet."
-      : `${f.without_price} of ${plural(f.count, "fund")} ${f.without_price === 1 ? "has" : "have"} no NAV newer than the statement.`,
-      f.without_price === 0 ? null : "Use Refresh prices. A fund AMFI does not list stays at its statement value and shows a dash."]);
-    if (f.unknown_amc) checks.push([false, `${plural(f.unknown_amc, "fund")} ${f.unknown_amc === 1 ? "has" : "have"} no fund house name.`]);
-    const h = f.history;
-    if (h.unknown) {
-      checks.push([false, `Transaction history is missing for ${h.unknown} of ${plural(f.count, "fund")}.`,
-        "Upload a detailed CAS from CAMS or KFintech to get it. Returns (XIRR) need it."]);
-    }
-    if (h.incomplete) {
-      checks.push([false, `${plural(h.incomplete, "fund")} ${h.incomplete === 1 ? "was" : "were"} held before the first statement began, so the history is partial.`,
-        "Request a CAMS or KFintech statement covering the full period."]);
-    }
-    if (!h.unknown && !h.incomplete) checks.push([true, "Transaction history covers the whole holding for every fund."]);
-  }
-  return checks;
-}
 
 function checkItem([ok, text, detail]) {
   return el("li", { class: ok ? "ok" : "warn" },
@@ -213,43 +159,6 @@ function checkItem([ok, text, detail]) {
     el("div", null,
       el("span", { class: "sr-only" }, ok ? "OK: " : "Needs attention: "), text,
       detail ? el("div", { class: "detail" }, detail) : null));
-}
-
-// What needs attention comes first and the passing checks fold away, so a clean portfolio is a single line.
-function renderCompleteness(p) {
-  const checks = completenessChecks(p.completeness);
-  document.getElementById("complete-section").hidden = checks.length === 0;
-  const failing = checks.filter((c) => !c[0]), passing = checks.filter((c) => c[0]);
-  document.getElementById("completeness-summary").textContent = failing.length === 0
-    ? "All checks passed. Every number below is backed by what the statements printed."
-    : `${plural(failing.length, "thing")} to look at. The figures they affect are less certain until fixed.`;
-  document.getElementById("completeness").replaceChildren(...failing.map(checkItem));
-  const folded = document.getElementById("completeness-ok");
-  folded.hidden = passing.length === 0;
-  document.getElementById("completeness-ok-summary").textContent = `${passing.length} ${passing.length === 1 ? "check" : "checks"} passed`;
-  document.getElementById("completeness-passed").replaceChildren(...passing.map(checkItem));
-}
-
-// How old each source is. A figure is only as current as its statement, so say so beside the totals.
-function freshnessChecks(p) {
-  const rows = [];
-  for (const [label, s] of [["Stocks and ETFs (demat statement)", p.statements.demat], ["Mutual funds", p.statements.mf]]) {
-    if (!s) continue;
-    rows.push([!s.stale, `${label}: statement dated ${day(s.period_to)}, ${plural(s.age_days, "day")} old.`,
-      s.stale ? "Older than this app's limit. Upload a newer statement; the values above are as of that date." : null]);
-  }
-  const dates = [...p.stocks, ...p.funds].map((h) => h.latest && h.latest.price_date).filter(Boolean).sort();
-  rows.push(dates.length === 0
-    ? [false, "No latest prices yet.", "Use Refresh prices. Until then every value is a statement value."]
-    : [true, `Latest prices: newest is from ${day(dates[dates.length - 1])}, oldest ${day(dates[0])}.`,
-        "From AMFI (fund NAVs) and NSE or BSE closing prices. Shown beside statement values, never added into them."]);
-  return rows;
-}
-
-function renderFreshness(p) {
-  const rows = freshnessChecks(p);
-  document.getElementById("fresh-section").hidden = rows.length === 0;
-  document.getElementById("freshness").replaceChildren(...rows.map(checkItem));
 }
 
 // The Overview's short version of the comparison: the two latest statements, the biggest movers, a link for the rest.
@@ -505,8 +414,7 @@ async function load() {
     document.getElementById("totals").hidden = empty;  // a row of zero totals would read as real figures
     document.getElementById("prices-bar").hidden = empty;
     renderTotals(portfolio);
-    renderCompleteness(portfolio);
-    renderFreshness(portfolio);
+    loadConfidence();  // not awaited: the panels filling in must not delay or break the page
     renderOverviewChange(history.points);
     renderHistory(history.points);
     setupChanges(history.points);

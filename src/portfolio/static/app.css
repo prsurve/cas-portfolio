@@ -312,3 +312,14 @@ dialog input[type="text"] { font: inherit; padding: var(--space-2); border: 1px 
 /* Returns table: a skipped fund's reason is a sentence, so the first column wraps instead of stretching the table. */
 #returns td:first-child { white-space: normal; min-width: 200px; max-width: 380px; }
 #returns th { white-space: normal; }
+
+/* Data quality: figure status and the issue lines */
+.status { font-weight: 600; }
+.status.ok { color: var(--gain); }
+.status.partial { color: var(--warn); }
+.status.unavailable { color: var(--muted); }
+.caveats { margin: var(--space-1) 0 0; padding-left: 18px; font-size: 0.8rem; color: var(--muted); font-weight: 400; }
+#figures td:first-child { white-space: normal; min-width: 170px; max-width: 320px; }
+#figures td:last-child { white-space: normal; min-width: 220px; }
+#complete-section h3 { font-size: 0.95rem; margin: var(--space-4) 0 var(--space-2); }
+.checks .detail strong { color: var(--text); font-weight: 600; }

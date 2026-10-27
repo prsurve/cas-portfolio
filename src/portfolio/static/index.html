@@ -57,7 +57,7 @@
       </section>
 
       <section aria-labelledby="fresh-h" id="fresh-section" hidden>
-        <h2 id="fresh-h">How current is this?</h2>
+        <h2 id="fresh-h">Where the data comes from</h2>
         <div class="card"><ul id="freshness" class="checks"></ul></div>
       </section>
 
@@ -79,6 +79,15 @@
             <summary id="completeness-ok-summary"></summary>
             <ul id="completeness-passed" class="checks"></ul>
           </details>
+          <h3>What each figure rests on</h3>
+          <div class="table-wrap">
+            <table id="figures" class="cards">
+              <thead>
+                <tr><th scope="col">Figure</th><th scope="col">How far to trust it</th><th scope="col">Based on</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
         </div>
       </section>
 
@@ -390,6 +399,7 @@
   <script src="/static/nav.js"></script>
   <script src="/static/holdings.js"></script>
   <script src="/static/imports.js"></script>
+  <script src="/static/confidence.js"></script>
   <script src="/static/returns.js"></script>
   <script src="/static/settings.js"></script>
   <script src="/static/app.js"></script>

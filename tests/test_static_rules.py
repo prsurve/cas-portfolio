@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 
 STATIC = Path(__file__).resolve().parent.parent / "src" / "portfolio" / "static"
-JS = [STATIC / "app.js", STATIC / "tools.js", STATIC / "nav.js", STATIC / "holdings.js", STATIC / "imports.js", STATIC / "settings.js", STATIC / "theme.js", STATIC / "returns.js"]
+JS = [STATIC / "app.js", STATIC / "tools.js", STATIC / "nav.js", STATIC / "holdings.js", STATIC / "imports.js", STATIC / "settings.js", STATIC / "theme.js", STATIC / "returns.js", STATIC / "confidence.js"]
 
 # Validated with the dataviz skill's scripts/validate_palette.js against this app's card surfaces
 # (adjacent pairs, light #ffffff and dark #1f1f1d). Change a hex and the check must be run again.
@@ -70,7 +70,7 @@ def test_every_table_column_has_a_phone_label():
     js = "".join(p.read_text() for p in JS)
     assert "@media (max-width: 640px)" in (STATIC / "app.css").read_text()
     tables = re.findall(r'<table id="(\w+)" class="cards">(.*?)</table>', html, re.S)
-    assert {t[0] for t in tables} == {"history", "changes", "holdings", "statements", "audit", "backups", "returns"}
+    assert {t[0] for t in tables} == {"history", "changes", "holdings", "statements", "audit", "backups", "returns", "figures"}
     for table_id, body in tables:
         headings = re.findall(r"<th[^>]*>(.*?)</th>", body, re.S)
         for index, raw in enumerate(headings):
@@ -214,10 +214,14 @@ def test_overview_has_its_panels_and_links_to_the_pages_behind_them():
         < overview.index('id="complete-section"') < overview.index('id="alloc-section"')
 
 
-def test_data_quality_lists_what_needs_attention_first_and_folds_the_rest():
-    js = (STATIC / "app.js").read_text()
-    assert "failing.map(checkItem)" in js and "passing.map(checkItem)" in js
+def test_data_quality_shows_what_each_issue_affects_and_what_to_do():
+    js = (STATIC / "confidence.js").read_text()
+    assert '"Affects: "' in js and '"What to do: "' in js, "an issue must say what it affects and what to do"
+    assert "r.issues.map(issueItem)" in js and "r.passed.map(" in js, "issues listed first, passing checks folded away"
     assert 'id="completeness-ok"' in (STATIC / "index.html").read_text()
+    for status in ("Fully backed", "Partly backed", "Cannot be worked out"):
+        assert status in js
+    assert "STATUS_MARK" in js, "status is a mark and words, not colour alone"
 
 
 def test_el_flattens_nested_children():
