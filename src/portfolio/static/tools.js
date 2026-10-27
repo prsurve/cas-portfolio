@@ -48,7 +48,16 @@
     return `${lines.join("\r\n")}\r\n`;
   }
 
-  const api = { matchesQuery, sortRows, csvCell, toCsv };
+  // Calls fn once, `wait` ms after the last call. Used so typing in a search box redraws a table once, not per key.
+  function debounce(fn, wait, timers = { set: setTimeout, clear: clearTimeout }) {
+    let handle = null;
+    return (...args) => {
+      if (handle !== null) timers.clear(handle);
+      handle = timers.set(() => { handle = null; fn(...args); }, wait);
+    };
+  }
+
+  const api = { matchesQuery, sortRows, csvCell, toCsv, debounce };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.PortfolioTools = api;
 })(typeof self !== "undefined" ? self : this);

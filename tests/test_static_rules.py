@@ -65,3 +65,22 @@ def test_every_table_column_has_a_phone_label():
             if index == 0 or not text or text == "Actions":  # the first column is the card's title; actions are buttons
                 continue
             assert f'"{text}"' in js, f"table #{table_id}: column {text!r} has no data-label in app.js"
+
+
+def test_every_kind_of_control_has_a_visible_focus_ring():
+    """Keyboard users need to see where they are: links, buttons, inputs, selects, summaries and focusable rows."""
+    css = (STATIC / "app.css").read_text()
+    rule = re.search(r"([^{}]*:focus-visible[^{}]*)\{[^}]*outline", css, re.S)
+    assert rule, "no :focus-visible outline rule"
+    for selector in ("a:focus-visible", "button:focus-visible", "input:focus-visible", "select:focus-visible",
+                     "summary:focus-visible", "[tabindex]:focus-visible"):
+        assert selector in rule.group(1), f"no focus ring for {selector}"
+
+
+def test_screen_reader_text_does_not_wrap():
+    assert re.search(r"\.sr-only\s*\{[^}]*white-space:\s*nowrap", (STATIC / "app.css").read_text())
+
+
+def test_search_boxes_are_debounced():
+    js = (STATIC / "app.js").read_text()
+    assert js.count("Tools.debounce(") == 2
