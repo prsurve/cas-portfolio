@@ -83,6 +83,8 @@ Under **Concentration** the page shows how much sits in a few places: your large
 
 ## Finding and exporting holdings
 
+On a phone (a narrow screen) each table row becomes a card with the column name beside every number, and the sort headings become a **Sort** dropdown.
+
 Both tables (demat holdings, mutual fund folios) have a **search box** (name, symbol, ISIN, broker or fund house; every word must match), a **type filter** and a **"held in more than one account"** filter for demat holdings, and **sortable columns** (click a heading, click again to reverse). **Export CSV** saves exactly the rows you see, with the filters and sort applied, as a file in your browser. The export contains your holdings, with only the last 4 characters of account and folio numbers, so keep it as private as the statement itself. Nothing is sent to the server for any of this.
 
 ## Upload a statement

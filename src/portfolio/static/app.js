@@ -164,10 +164,15 @@ function renderTotals(p) {
   document.getElementById("totals").replaceChildren(...tiles);
 }
 
+let lastHistory = null;
+
 function renderHistory(points) {
   document.getElementById("history-section").hidden = points.length < 2;  // one point is not a trend
   if (points.length < 2) return;
-  const W = 720, H = 240, L = 78, R = 16, T = 16, B = 30;
+  lastHistory = points;
+  // Drawn at the width it is shown at, so the axis text keeps its size on a phone instead of shrinking with the picture.
+  const W = Math.max(300, Math.min(720, document.getElementById("history-chart").clientWidth || 720));
+  const H = 240, L = 78, R = 16, T = 16, B = 30;
   const times = points.map((p) => new Date(`${p.date}T00:00:00`).getTime());
   const lo = Math.min(...points.map((p) => p.value)), hi = Math.max(...points.map((p) => p.value));
   const pad = (hi - lo) * 0.1 || hi * 0.1 || 1;
@@ -191,11 +196,11 @@ function renderHistory(points) {
 
   document.querySelector("#history tbody").replaceChildren(...[...points].reverse().map((p) => el("tr", null,
     el("td", null, day(p.date)),
-    el("td", { class: "num" }, money(p.value)),
-    el("td", { class: "num" }, money(p.demat_value)),
-    el("td", { class: "num" }, money(p.mf_value)),
-    el("td", { class: p.mixed ? "loss" : "subtle" },
-      p.mixed ? `Stocks and funds are ${p.spread_days} days apart` : p.mf_source ? `Funds from ${ISSUERS[p.mf_source]}` : ""))));
+    el("td", { class: "num", "data-label": "Total" }, money(p.value)),
+    el("td", { class: "num", "data-label": "Demat" }, money(p.demat_value)),
+    el("td", { class: "num", "data-label": "Mutual funds" }, money(p.mf_value)),
+    el("td", { class: p.mixed ? "loss" : "subtle", "data-label": "Note" },
+      p.mixed ? `Stocks and funds are ${p.spread_days} days apart` : p.mf_source ? `Funds from ${ISSUERS[p.mf_source]}` : null))));
 }
 
 // ---- completeness ------------------------------------------------------------------
@@ -318,12 +323,12 @@ function renderChanges(r) {
   const body = rows.map((c) => el("tr", null,
     el("td", null, el("div", { class: "symbol" }, c.name),
       el("div", { class: "subtle" }, [c.group, c.isin].filter(Boolean).join(" · "))),
-    el("td", null, CHANGE_KINDS[c.kind] || c.kind),
-    el("td", { class: "num" }, `${qtyFmt.format(c.quantity_before)} → ${qtyFmt.format(c.quantity_after)}`),
-    el("td", { class: "num" }, money(c.value_before)),
-    el("td", { class: "num" }, money(c.value_after)),
-    el("td", { class: `num ${signClass(c.quantity_effect)}` }, money(c.quantity_effect)),
-    el("td", { class: `num ${signClass(c.price_effect)}` }, money(c.price_effect))));
+    el("td", { "data-label": "Change" }, CHANGE_KINDS[c.kind] || c.kind),
+    el("td", { class: "num", "data-label": "Quantity" }, `${qtyFmt.format(c.quantity_before)} → ${qtyFmt.format(c.quantity_after)}`),
+    el("td", { class: "num", "data-label": "Value before" }, money(c.value_before)),
+    el("td", { class: "num", "data-label": "Value after" }, money(c.value_after)),
+    el("td", { class: `num ${signClass(c.quantity_effect)}`, "data-label": "Buying or selling" }, money(c.quantity_effect)),
+    el("td", { class: `num ${signClass(c.price_effect)}`, "data-label": "Price moves" }, money(c.price_effect))));
   if (body.length === 0) body.push(el("tr", null, el("td", { colspan: "7", class: "empty" }, "No holding changed between these dates.")));
   document.querySelector("#changes tbody").replaceChildren(...body);
 }
@@ -420,10 +425,10 @@ function renderConcentration(p) {
 }
 
 // A holding's value at its latest public price. No price found: a dash, never an estimate.
-function latestCell(l) {
-  if (!l) return el("td", { class: "num" }, "–");
+function latestCell(l, column) {
+  if (!l) return el("td", { class: "num", "data-label": column }, "–");
   const label = l.source === "AMFI" ? `NAV ${price(l.price)}` : `${price(l.price)} · ${l.source}`;
-  return el("td", { class: "num" },
+  return el("td", { class: "num", "data-label": column },
     money(l.value),
     el("div", { class: signClass(l.change) }, `${money(l.change)} ${pct(l.change_pct)}`),
     el("div", { class: l.stale ? "subtle loss" : "subtle" }, `${label} · ${day(l.price_date)}${l.stale ? " (old)" : ""}`));
@@ -508,6 +513,25 @@ function markSorted(tableId, state) {
     th.setAttribute("aria-sort", on ? (state.dir === "asc" ? "ascending" : "descending") : "none");
     th.querySelector("button").dataset.arrow = on ? (state.dir === "asc" ? "▲" : "▼") : "";
   }
+  const select = document.getElementById(`${tableId}-sort`);
+  if (select) select.value = `${state.key}:${state.dir}`;
+}
+
+// On a phone the header row is hidden, so sorting moves to a dropdown that offers the same columns.
+function setupMobileSort(tableId, state, rerender) {
+  const select = document.getElementById(`${tableId}-sort`);
+  for (const th of document.querySelectorAll(`#${tableId} th[data-sort]`)) {
+    const name = th.textContent.trim(), numeric = th.classList.contains("num");
+    for (const dir of numeric ? ["desc", "asc"] : ["asc", "desc"]) {
+      const how = numeric ? (dir === "desc" ? "high to low" : "low to high") : (dir === "asc" ? "A to Z" : "Z to A");
+      select.append(el("option", { value: `${th.dataset.sort}:${dir}` }, `${name}: ${how}`));
+    }
+  }
+  select.value = `${state.key}:${state.dir}`;
+  select.addEventListener("change", () => {
+    [state.key, state.dir] = select.value.split(":");
+    rerender();
+  });
 }
 
 const orNull = (l, field) => (l ? l[field] : null);
@@ -564,18 +588,18 @@ function renderFunds(p) {
     el("td", null, el("div", { class: "symbol" }, f.scheme),
       el("div", { class: "subtle" },
         [f.amc, f.scheme_type, `${f.folios.length} folio${f.folios.length > 1 ? "s" : ""}`].filter(Boolean).join(" · "))),
-    el("td", { class: "num" }, qtyFmt.format(f.units)),
-    el("td", { class: "num" }, price(f.nav), el("div", { class: "subtle" }, day(f.nav_date))),
-    el("td", { class: "num" }, money(f.cost)),
-    el("td", { class: "num" }, money(f.value)),
-    el("td", { class: `num ${signClass(f.gain)}` }, money(f.gain), el("div", { class: "subtle" }, pct(f.gain_pct))),
-    latestCell(f.latest),
+    el("td", { class: "num", "data-label": "Units" }, qtyFmt.format(f.units)),
+    el("td", { class: "num", "data-label": "NAV" }, price(f.nav), el("div", { class: "subtle" }, day(f.nav_date))),
+    el("td", { class: "num", "data-label": "Invested" }, money(f.cost)),
+    el("td", { class: "num", "data-label": "Value" }, money(f.value)),
+    el("td", { class: `num ${signClass(f.gain)}`, "data-label": "Gain" }, money(f.gain), el("div", { class: "subtle" }, pct(f.gain_pct))),
+    latestCell(f.latest, "At latest NAV"),
   ], f.folios.map((x) => el("tr", null,
     el("td", null, `Folio ${x.folio}`),
-    el("td", { class: "num" }, qtyFmt.format(x.units)),
+    el("td", { class: "num", "data-label": "Units" }, qtyFmt.format(x.units)),
     el("td"),
-    el("td", { class: "num" }, money(x.cost)),
-    el("td", { class: "num" }, money(x.value)),
+    el("td", { class: "num", "data-label": "Invested" }, money(x.cost)),
+    el("td", { class: "num", "data-label": "Value" }, money(x.value)),
     el("td"), el("td")))));
   if (rows.length === 0 && p.funds.length) {
     rows.push(el("tr", null, el("td", { colspan: "7", class: "empty" }, "No fund matches the search.")));
@@ -597,17 +621,17 @@ function renderStocks(p) {
     el("td", null, el("div", { class: "symbol" }, h.name),
       el("div", { class: "subtle" },
         [ASSET_TYPES[h.asset_type] || h.asset_type, h.symbol, h.isin].filter(Boolean).join(" · "))),
-    el("td", { class: "num" }, qtyFmt.format(h.quantity)),
-    el("td", { class: "num" }, price(h.price)),
-    el("td", { class: "num" }, money(h.value)),
-    latestCell(h.latest),
-    el("td", { class: "num" }, total ? `${((h.value / total) * 100).toFixed(1)}%` : "–"),
-    el("td", null, h.brokers.map((b) => el("span", { class: "chip" }, b))),
+    el("td", { class: "num", "data-label": "Quantity" }, qtyFmt.format(h.quantity)),
+    el("td", { class: "num", "data-label": "Price" }, price(h.price)),
+    el("td", { class: "num", "data-label": "Value" }, money(h.value)),
+    latestCell(h.latest, "At latest price"),
+    el("td", { class: "num", "data-label": "Weight" }, total ? `${((h.value / total) * 100).toFixed(1)}%` : "–"),
+    el("td", { "data-label": "Brokers" }, el("div", { class: "chips" }, h.brokers.map((b) => el("span", { class: "chip" }, b)))),
   ], h.accounts.map((a) => el("tr", null,
     el("td", null, `${a.label} ${a.client} · ${a.depository}`),
-    el("td", { class: "num" }, qtyFmt.format(a.quantity)),
+    el("td", { class: "num", "data-label": "Quantity" }, qtyFmt.format(a.quantity)),
     el("td"),
-    el("td", { class: "num" }, money(a.value)),
+    el("td", { class: "num", "data-label": "Value" }, money(a.value)),
     el("td"), el("td"), el("td")))));
   if (rows.length === 0 && p.stocks.length) {
     rows.push(el("tr", null, el("td", { colspan: "7", class: "empty" }, "No holding matches the search and filters.")));
@@ -626,11 +650,11 @@ function statementStatus(s) {
 
 function renderStatements(list) {
   const rows = list.map((s) => el("tr", null,
-    el("td", null, ISSUERS[s.issuer] || s.issuer),
-    el("td", null, s.kind === "mf" ? "Mutual funds" : "Stocks"),
-    el("td", null, `${day(s.period_from)} – ${day(s.period_to)}`),
-    el("td", null, day(s.imported_at)),
-    el("td", null, statementStatus(s)),
+    el("td", { "data-label": "Issuer" }, ISSUERS[s.issuer] || s.issuer),
+    el("td", { "data-label": "Covers" }, s.kind === "mf" ? "Mutual funds" : "Stocks"),
+    el("td", { "data-label": "Period" }, `${day(s.period_from)} – ${day(s.period_to)}`),
+    el("td", { "data-label": "Imported" }, day(s.imported_at)),
+    el("td", { "data-label": "Status" }, statementStatus(s)),
     el("td", { class: "num" }, el("button", { type: "button", onclick: () => removeStatement(s) }, "Delete"))));
   if (rows.length === 0) {
     rows.push(el("tr", null, el("td", { colspan: "6", class: "empty" }, "Nothing imported yet. Upload a statement above.")));
@@ -691,7 +715,10 @@ document.getElementById("refresh-prices").addEventListener("click", refreshPrice
 let resizeTimer = null;
 window.addEventListener("resize", () => {  // segment widths change, so which labels fit does too
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => lastPortfolio && renderAllocation(lastPortfolio), 150);
+  resizeTimer = setTimeout(() => {
+    if (lastPortfolio) renderAllocation(lastPortfolio);
+    if (lastHistory) renderHistory(lastHistory);
+  }, 150);
 });
 document.getElementById("chg-from").addEventListener("change", loadChanges);
 document.getElementById("chg-to").addEventListener("change", loadChanges);
@@ -700,6 +727,8 @@ const rerenderStocks = () => lastPortfolio && renderStocks(lastPortfolio);
 const rerenderFunds = () => lastPortfolio && renderFunds(lastPortfolio);
 makeSortable("stocks", tableState.stocks, rerenderStocks);
 makeSortable("funds", tableState.funds, rerenderFunds);
+setupMobileSort("stocks", tableState.stocks, rerenderStocks);
+setupMobileSort("funds", tableState.funds, rerenderFunds);
 document.getElementById("multi-only").addEventListener("change", rerenderStocks);
 document.getElementById("stocks-q").addEventListener("input", (e) => { tableState.stocks.query = e.target.value; rerenderStocks(); });
 document.getElementById("stocks-type").addEventListener("change", (e) => { tableState.stocks.type = e.target.value; rerenderStocks(); });

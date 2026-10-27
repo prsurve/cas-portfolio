@@ -36,3 +36,32 @@ def test_script_never_writes_inline_styles_or_markup():
         assert "innerHTML" not in code and "outerHTML" not in code and "insertAdjacentHTML" not in code, path.name
     html = (STATIC / "index.html").read_text()
     assert " style=" not in html and "<style" not in html
+
+
+# ---- phones --------------------------------------------------------------------------
+
+
+def test_nothing_can_stretch_the_page_sideways():
+    """Two real bugs found at 360px: a grid column with a 340px minimum, and hidden screen-reader text that is
+    absolutely positioned and so escaped its table's scroll box (the page measured 610px on a 345px screen)."""
+    css = (STATIC / "app.css").read_text()
+    assert re.search(r"\.table-wrap\s*\{[^}]*position:\s*relative[^}]*overflow-x:\s*auto", css), \
+        ".table-wrap must be position: relative, or .sr-only text inside a wide table widens the page"
+    assert "minmax(min(340px, 100%)" in css and "minmax(340px" not in css.replace("min(340px", ""), \
+        "a grid column minimum wider than a phone makes the whole page scroll sideways"
+
+
+def test_every_table_column_has_a_phone_label():
+    """On a phone a row becomes a card and each number is labelled from data-label. A new column needs a label."""
+    html = (STATIC / "index.html").read_text()
+    js = (STATIC / "app.js").read_text()
+    assert "@media (max-width: 640px)" in (STATIC / "app.css").read_text()
+    tables = re.findall(r'<table id="(\w+)" class="cards">(.*?)</table>', html, re.S)
+    assert {t[0] for t in tables} == {"history", "changes", "funds", "stocks", "statements"}
+    for table_id, body in tables:
+        headings = re.findall(r"<th[^>]*>(.*?)</th>", body, re.S)
+        for index, raw in enumerate(headings):
+            text = re.sub(r"<[^>]+>", "", raw).strip()
+            if index == 0 or not text or text == "Actions":  # the first column is the card's title; actions are buttons
+                continue
+            assert f'"{text}"' in js, f"table #{table_id}: column {text!r} has no data-label in app.js"
