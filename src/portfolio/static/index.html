@@ -63,7 +63,7 @@
     <div class="card chart-card">
       <div id="history-chart" class="chart"></div>
       <div class="table-wrap">
-        <table id="history">
+        <table id="history" class="cards">
           <thead>
             <tr>
               <th scope="col">Statement date</th>
@@ -93,7 +93,7 @@
     <div id="changes-summary" class="subtle"></div>
     <div id="changes-warnings"></div>
     <div class="table-wrap">
-      <table id="changes">
+      <table id="changes" class="cards">
         <thead>
           <tr>
             <th scope="col">Holding</th>
@@ -126,12 +126,13 @@
   <section aria-labelledby="funds-h" id="funds-section" hidden>
     <h2 id="funds-h">Mutual fund folios <span class="subtle" id="funds-asof"></span></h2>
     <div class="toolbar">
+      <label class="mobile-only">Sort <select id="funds-sort"></select></label>
       <label>Search <input type="search" id="funds-q" placeholder="Scheme, fund house or ISIN" autocomplete="off"></label>
       <button type="button" class="btn" id="funds-csv">Export CSV</button>
       <span class="subtle" id="funds-count" role="status" aria-live="polite"></span>
     </div>
     <div class="table-wrap">
-      <table id="funds">
+      <table id="funds" class="cards">
         <thead>
           <tr>
             <th scope="col" data-sort="scheme">Scheme</th>
@@ -151,6 +152,7 @@
   <section aria-labelledby="stocks-h" id="stocks-section" hidden>
     <h2 id="stocks-h">Demat holdings <span class="subtle" id="stocks-asof"></span></h2>
     <div class="toolbar">
+      <label class="mobile-only">Sort <select id="stocks-sort"></select></label>
       <label>Search <input type="search" id="stocks-q" placeholder="Name, symbol, ISIN or broker" autocomplete="off"></label>
       <label>Type
         <select id="stocks-type">
@@ -165,7 +167,7 @@
       <span class="subtle" id="stocks-count" role="status" aria-live="polite"></span>
     </div>
     <div class="table-wrap">
-      <table id="stocks">
+      <table id="stocks" class="cards">
         <thead>
           <tr>
             <th scope="col" data-sort="name">Holding</th>
@@ -185,7 +187,7 @@
   <section aria-labelledby="statements-h">
     <h2 id="statements-h">Imported statements</h2>
     <div class="table-wrap">
-      <table id="statements">
+      <table id="statements" class="cards">
         <thead>
           <tr>
             <th scope="col">Issuer</th><th scope="col">Covers</th><th scope="col">Period</th>
