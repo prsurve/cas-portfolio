@@ -24,7 +24,7 @@ KNOWN_FAKE = {
 
 
 ROOT = Path(__file__).resolve().parent.parent
-FORBIDDEN_NAME = re.compile(r"(\.pdf|\.db|\.sqlite3?)$|(^|/)\.env$", re.IGNORECASE)
+FORBIDDEN_NAME = re.compile(r"(\.pdf|\.db|\.gpg|\.sqlite3?)$|(^|/)\.env$", re.IGNORECASE)
 FORBIDDEN_DIR = re.compile(r"(^|/)data/")
 FAKE = re.compile(r"\b(" + "|".join(sorted(KNOWN_FAKE)) + r")\b")
 PAN = re.compile(r"\b[A-Z]{5}[0-9]{4}[A-Z]\b")

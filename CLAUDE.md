@@ -95,6 +95,8 @@ There is no `--reload`, so restart the server after code changes. (Users of the 
 
 ## Known gaps and future improvements
 
+The full backlog, UI audit, navigation design and phases are in `docs/ROADMAP.md`. The list below is the older summary.
+
 Rough priority order:
 
 1. **Prices between statements.** Done: AMFI NAVs for funds (`prices.py`) and NSE/BSE closes for stocks, ETFs and SGBs (`bhavcopy.py`), matched by ISIN. Still open: a scheduled daily refresh (see 8), and price history (only the newest price per ISIN is kept).
@@ -102,7 +104,7 @@ Rough priority order:
 3. **Mutual fund XIRR and realized gains** from `mf_transactions`. This needs a CAMS/KFintech detailed statement; the CDSL folio section has no transactions.
 4. **Stock purchase cost.** NSDL/CDSL has none. Options: import broker holdings or tradebook CSV exports (Zerodha Console, Upstox, HDFC Securities) to get average cost and stock P&L.
 5. **Vested (US stocks):** a CSV/PDF statement import with a USD→INR rate. No public API exists.
-6. **Personal-data guard:** a test or pre-commit hook that fails on PAN-shaped strings, long account IDs or `*.pdf` and `*.db` files in the commit.
+6. **Personal-data guard:** done (`scripts/privacy_check.py`, `tests/test_privacy.py`, `scripts/install_hooks.sh`). CI runs it on every pull request (`.github/workflows/ci.yml`).
 7. **App authentication** beyond Cloudflare Access (for example a passkey or single password), if it is ever exposed differently.
 8. **Off-device backups:** copy the encrypted `.gpg` files off the Pi. (An optional systemd setup for other users exists in `deploy/`; the maintainer runs the app, backups and price refresh by hand. Don't install it on the maintainer's machine.)
 9. **Allocation charts:** done (a stacked bar for asset classes, a bar per row elsewhere, tables kept as the legend). Still open: a chart of growth by asset class over time.

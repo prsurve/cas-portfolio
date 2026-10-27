@@ -51,3 +51,7 @@ def test_gitignore_covers_private_files():
     ignored = (ROOT / ".gitignore").read_text().split()
     for pattern in ("*.pdf", "data/", "*.db", ".env"):
         assert pattern in ignored, f".gitignore no longer lists {pattern}"
+
+
+def test_encrypted_backup_file_is_flagged(tmp_path, monkeypatch):
+    assert len(_check(tmp_path, monkeypatch, "portfolio.db.gpg", "x")) == 1
