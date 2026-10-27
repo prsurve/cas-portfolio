@@ -70,6 +70,27 @@ def map_broker(dp_name: str | None) -> str | None:
     return None
 
 
+LEGAL_SUFFIXES = {"LIMITED", "LTD", "PRIVATE", "PVT", "LLP", "INC"}
+ACRONYMS = {"ICICI", "IIFL", "IDBI", "IDFC", "SBI", "UTI", "LIC"}
+
+
+def broker_label(dp_name: str | None) -> str:
+    """A readable broker name from the DP name printed on the statement.
+
+    'ZERODHA BROKING LIMITED' -> 'Zerodha Broking'. Nothing is looked up, so
+    any broker works and nothing needs maintaining: HDFC Bank and HDFC
+    Securities stay different because the statement says so.
+    """
+    words = re.sub(r"[.,]", " ", dp_name or "").split()
+    while words and words[-1].upper() in LEGAL_SUFFIXES:
+        words.pop()
+    if not words:
+        return (dp_name or "").strip() or "Unknown"
+    # Words without a vowel (HDFC, DP, &) and a few known names stay in capitals.
+    return " ".join(w.upper() if w.upper() in ACRONYMS or not re.search("[AEIOUY]", w.upper()) else w.capitalize()
+                    for w in words)
+
+
 def mask_id(value: str | None) -> str:
     """Keep only the last 4 characters of a folio or client number."""
     value = (value or "").strip()
@@ -325,9 +346,6 @@ def from_demat_data(data: Any) -> ParsedStatement:
             "from this statement" + ("" if costed else ", without purchase cost") + ". If you also upload a "
             "CAMS/KFintech statement, the newer one is used for mutual funds, never both."
         )
-    unmapped = sorted({a.dp_name for a in st.accounts if a.broker is None})
-    if unmapped:
-        st.notes.append(f"Unknown broker for: {', '.join(unmapped)}.")
     return st
 
 
@@ -453,7 +471,7 @@ def summary(st: ParsedStatement) -> dict[str, Any]:
             folio_cost=num(sum((m["cost"] for m in st.mfs if m["cost"] is not None), Decimal(0)))
             if any(m["cost"] is not None for m in st.mfs) else None,
             accounts=[{
-                "depository": a.depository, "broker": a.broker, "dp_name": a.dp_name,
+                "depository": a.depository, "broker": a.broker, "label": broker_label(a.dp_name), "dp_name": a.dp_name,
                 "client": a.client_id_masked, "stocks": a.stocks, "funds": a.funds, "bonds": a.bonds,
                 "imported_value": num(a.imported_value), "statement_total": num(a.statement_total),
                 "gap": num(a.gap),
@@ -536,14 +554,14 @@ def print_report(st: ParsedStatement, out=None) -> None:
         p("\n" + _table(
             ["Depository", "Broker", "DP name", "Client", "Stocks", "Funds/ETFs", "Bonds",
              "Read", "Statement total", "Missing"],
-            [[a["depository"], a["broker"] or "UNKNOWN", a["dp_name"][:36], a["client"], str(a["stocks"]),
+            [[a["depository"], a["label"], a["dp_name"][:36], a["client"], str(a["stocks"]),
               str(a["funds"]), str(a["bonds"]), _money(a["imported_value"]), _money(a["statement_total"]),
               _money(a["gap"]) if abs(a["gap"]) > 1 else "-"] for a in s["accounts"]],
             right={4, 5, 6, 7, 8, 9},
         ))
         p("\n" + _table(
             ["Broker", "Type", "ISIN", "Symbol", "Name", "Quantity", "Price", "Value"],
-            [[h["broker"] or "UNKNOWN", h["asset_type"], h["isin"], h["symbol"] or "-", (h["name"] or "")[:40],
+            [[broker_label(h["dp_name"]), h["asset_type"], h["isin"], h["symbol"] or "-", (h["name"] or "")[:40],
               f"{h['quantity']:f}",
               _money(h["price"]), _money(h["value"])]
              for h in sorted(st.stocks, key=lambda h: h["value"], reverse=True)],

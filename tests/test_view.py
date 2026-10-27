@@ -32,7 +32,8 @@ def test_combined_view(store, mf_data, demat_data):
     assert t["stocks_count"] == 4 and t["multi_broker_stocks"] == 1
     infy = next(s for s in v["stocks"] if s["isin"] == "INE009A01021")
     assert infy["quantity"] == 20 and infy["value"] == 20 * 1450 and infy["price"] == 1450
-    assert infy["brokers"] == ["upstox", "zerodha"] and len(infy["accounts"]) == 2
+    assert infy["brokers"] == ["Upstox Securities", "Zerodha Broking"] and len(infy["accounts"]) == 2
+    assert {a["label"] for a in infy["accounts"]} == {"Upstox Securities", "Zerodha Broking"}
     assert t["stocks_value"] == 20 * 1450 + 5 * 3400 + 20 * 1700 + 3 * 2900
     assert t["demat_funds_value"] == 1000 and t["bonds_value"] == 0
     assert t["demat_value"] == t["stocks_value"] + 1000 and t["demat_count"] == 5
@@ -53,7 +54,7 @@ def test_combined_view(store, mf_data, demat_data):
     assert set(classes) == {"Stocks", "ETFs & demat funds", "Mutual funds (folios)"}  # no empty Bonds row
     assert sum(classes.values()) == pytest.approx(100)
     brokers = {a["label"] for a in v["allocation"]["broker"]}
-    assert {"Zerodha", "Upstox", "HDFC Securities", "SOME OTHER DP LTD"} == brokers
+    assert {"Zerodha Broking", "Upstox Securities", "HDFC Bank", "Some Other DP"} == brokers
     assert {a["label"] for a in v["allocation"]["fund_type"]} == {"Equity", "Debt"}
 
     s = v["statements"]["mf"]

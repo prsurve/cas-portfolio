@@ -50,6 +50,7 @@ There is no `--reload`, so restart the server after code changes.
   - Demat holdings come from the latest demat statement only.
   - Mutual funds come from exactly one statement: the newest of (latest CAMS/KFintech, latest NSDL/CDSL) that has fund rows. On the same date, CAMS/KFintech wins because it has transactions.
   - The total can still mix dates, because stocks and funds may come from statements of different dates. `as_of` in the view gives the range, and `mixed` is true when the two are more than `MIXED_DATES_AFTER_DAYS` (7) apart. The total tile shows the range and an alert appears when it is mixed.
+- **Broker names** shown on the page come from the DP name printed on the statement (`broker_label()` in `cas.py`: legal suffixes dropped, case tidied), so any broker works with no list to maintain. The stored `broker` key from `BROKER_PATTERNS` is no longer used for display.
 - **Merge keys:** demat holdings merge by ISIN across accounts; funds merge by ISIN, falling back to scheme name, across folios.
 - **Money:** always `Decimal`, converted to float only in `_jsonable`. Statement values are as of the statement date; there are no live prices.
   - **Storage:** use the `Money` column type (`money.py`) for amounts and quantities. On SQLite it stores integer millionths, because a NUMERIC column would store a float. Older databases are converted once on open (`PRAGMA user_version` 0 → 1). Values that need more than 6 decimals or exceed ~9.2 trillion are not supported on SQLite.
