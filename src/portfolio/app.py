@@ -18,6 +18,7 @@ from fastapi.staticfiles import StaticFiles
 
 from portfolio.config import Settings, get_settings
 from portfolio.importers.cas import PARSER_VERSION, CasImportError, parse_pdf_bytes, save, sha256, summary
+from portfolio.backup import newest_age_days
 from portfolio.changes import compare
 from portfolio.history import value_history
 from portfolio.portfolio_view import build_view
@@ -87,6 +88,16 @@ def create_app(settings: Settings | None = None, store: Store | None = None,
         statement_id, created = save(store, parsed, sha256(pdf))
         return JSONResponse({"id": statement_id, "created": created, **summary(parsed)},
                             status_code=201 if created else 200)
+
+    @app.get("/healthz")
+    def healthz() -> JSONResponse:
+        """For a monitor or a systemd watchdog. No portfolio data, and no database internals."""
+        healthy = store.quick_check() == "ok"
+        return JSONResponse({
+            "status": "ok" if healthy else "degraded", "database": "ok" if healthy else "error",
+            "schema_version": store.schema_version(),
+            "last_backup_days": newest_age_days(Path(settings.backup_dir)),
+        }, status_code=200 if healthy else 503)
 
     @app.get("/api/statements")
     def statements() -> dict[str, Any]:

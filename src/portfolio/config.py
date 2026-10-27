@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     # Allow downloading AMFI's public NAV file when you click Refresh. The only outbound request
     # the app makes; it sends nothing about your holdings.
     fetch_prices: bool = True
+    # Backups of the SQLite database (python -m portfolio.backup). The folder is private and git-ignored.
+    backup_dir: str = "data/backups"
+    backup_keep: int = 14
+    # A gpg public key (id, fingerprint or email). Set it and backups are encrypted to that key.
+    backup_gpg_recipient: str | None = None
 
 
 @lru_cache
