@@ -21,8 +21,9 @@
   color-scheme: light dark;
 }
 
+/* Dark follows the system unless the page was set to light; Settings can also force dark or light. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #161615;
     --surface: #1f1f1d;
     --text: #ececea;
@@ -40,6 +41,26 @@
     --series-4: #c98500;
   }
 }
+
+:root[data-theme="dark"] {
+  --bg: #161615;
+  --surface: #1f1f1d;
+  --text: #ececea;
+  --muted: #9d9d97;
+  --border: #33332f;
+  --gain: #4cc38a;
+  --loss: #ff7a6b;
+  --warn-bg: #3a2a12;
+  --warn: #ffc46b;
+  --accent: #7aa2ff;
+  --on-accent: #0b0b0b;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  color-scheme: dark;
+}
+:root[data-theme="light"] { color-scheme: light; }
 
 [hidden] { display: none !important; }  /* class rules such as .tiles { display: grid } must not defeat the hidden attribute */
 * { box-sizing: border-box; }
@@ -270,3 +291,20 @@ a.symbol:hover { text-decoration: underline; color: var(--accent); }
 .result .controls { margin-bottom: 0; }
 #statements td.num button + button { margin-left: var(--space-1); }
 .result p { margin: 0; }
+
+/* Settings */
+.facts { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-1) var(--space-4); margin: var(--space-3) 0 0; font-size: 0.9rem; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; overflow-wrap: anywhere; }
+.facts-list { margin: var(--space-2) 0 var(--space-3); padding-left: 20px; display: grid; gap: var(--space-2); font-size: 0.9rem; }
+.theme { border: 0; padding: 0; margin: 0 0 var(--space-2); display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
+.theme legend { font-weight: 600; margin-bottom: var(--space-2); }
+.theme label { display: flex; gap: var(--space-2); align-items: center; min-height: 32px; }
+.btn.danger { background: var(--loss); border-color: var(--loss); color: var(--bg); }
+.btn.danger:disabled { opacity: 0.45; cursor: not-allowed; }
+dialog { max-width: min(480px, calc(100vw - 32px)); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  background: var(--surface); color: var(--text); padding: var(--space-4) var(--space-5); }
+dialog::backdrop { background: rgba(0, 0, 0, 0.5); }
+dialog h2 { margin-top: 0; }
+dialog label { display: grid; gap: var(--space-1); font-size: 0.875rem; color: var(--muted); }
+dialog input[type="text"] { font: inherit; padding: var(--space-2); border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); }

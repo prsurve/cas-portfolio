@@ -524,21 +524,6 @@ async function load() {
   }
 }
 
-async function deleteAllData() {
-  const phrase = "delete all data";
-  const typed = prompt(`This removes every imported statement and price from this machine. Export first if you want a copy.\n\nType "${phrase}" to confirm.`);
-  if (typed === null) return;
-  if (typed.trim() !== phrase) { showAlerts(["Nothing was deleted: the phrase did not match."]); return; }
-  try {
-    await api("/api/data", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirm: phrase }) });
-  } catch (err) {
-    showAlerts([`Delete failed: ${err.message}`]);
-    return;
-  }
-  await load();
-}
-
-document.getElementById("delete-data").addEventListener("click", deleteAllData);
 document.getElementById("refresh-prices").addEventListener("click", refreshPrices);
 // Charts depend on their width, so they are drawn again when it changes and when their page is shown.
 const redrawSized = () => {
@@ -554,8 +539,10 @@ document.getElementById("chg-from").addEventListener("change", loadChanges);
 document.getElementById("chg-to").addEventListener("change", loadChanges);
 initHoldings();
 initImports();
+initSettings();
 window.Nav.init((page, arg, moveFocus) => {
   redrawSized();
+  if (page === "settings") loadSettings();
   if (page === "holdings") showHoldings(arg, moveFocus);
   else currentHoldingKey = null;  // so a reload while on another page does not fetch a detail nobody is looking at
 });

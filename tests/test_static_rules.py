@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 
 STATIC = Path(__file__).resolve().parent.parent / "src" / "portfolio" / "static"
-JS = [STATIC / "app.js", STATIC / "tools.js", STATIC / "nav.js", STATIC / "holdings.js", STATIC / "imports.js"]
+JS = [STATIC / "app.js", STATIC / "tools.js", STATIC / "nav.js", STATIC / "holdings.js", STATIC / "imports.js", STATIC / "settings.js", STATIC / "theme.js"]
 
 # Validated with the dataviz skill's scripts/validate_palette.js against this app's card surfaces
 # (adjacent pairs, light #ffffff and dark #1f1f1d). Change a hex and the check must be run again.
@@ -17,12 +17,25 @@ SERIES = {
 def test_chart_palette_is_the_validated_one():
     css = (STATIC / "app.css").read_text()
     found = re.findall(r"--series-(\d):\s*(#[0-9a-fA-F]{6});", css)
-    assert [(n, h) for n, h in found[:4]] == [(str(i + 1), h) for i, h in enumerate(SERIES["light"])]
-    assert [(n, h) for n, h in found[4:8]] == [(str(i + 1), h) for i, h in enumerate(SERIES["dark"])]
-    assert len(found) == 8, "a series colour was added or dropped: validate the palette again"
+    expected_light = [(str(i + 1), h) for i, h in enumerate(SERIES["light"])]
+    expected_dark = [(str(i + 1), h) for i, h in enumerate(SERIES["dark"])]
+    # light, dark when the system is dark, dark when forced from Settings: the last two must be identical
+    assert found[:4] == expected_light and found[4:8] == expected_dark and found[8:12] == expected_dark
+    assert len(found) == 12, "a series colour was added or dropped: validate the palette again"
     # the dark values live inside the dark-mode media query
     dark_block = css[css.index("prefers-color-scheme: dark"):]
-    assert all(h in dark_block[:600] for h in SERIES["dark"])
+    assert all(h in dark_block[:900] for h in SERIES["dark"])
+
+
+def test_forced_dark_theme_is_a_copy_of_the_system_dark_theme():
+    """Dark exists twice (system dark, and forced from Settings). They must never drift apart."""
+    css = (STATIC / "app.css").read_text()
+    media = css[css.index('@media (prefers-color-scheme: dark)'):css.index(':root[data-theme="dark"]')]
+    forced = css[css.index(':root[data-theme="dark"]'):css.index(':root[data-theme="light"]')]
+    tokens = lambda block: dict(re.findall(r"--([\w-]+):\s*(#[0-9a-fA-F]{6})", block))  # noqa: E731
+    assert tokens(media) == tokens(forced) and len(tokens(media)) >= 14
+    assert 'color-scheme: dark' in forced
+    assert ':root:not([data-theme="light"])' in media, "an explicit light choice must beat a dark system"
 
 
 def test_script_never_writes_inline_styles_or_markup():
@@ -57,7 +70,7 @@ def test_every_table_column_has_a_phone_label():
     js = "".join(p.read_text() for p in JS)
     assert "@media (max-width: 640px)" in (STATIC / "app.css").read_text()
     tables = re.findall(r'<table id="(\w+)" class="cards">(.*?)</table>', html, re.S)
-    assert {t[0] for t in tables} == {"history", "changes", "holdings", "statements", "audit"}
+    assert {t[0] for t in tables} == {"history", "changes", "holdings", "statements", "audit", "backups"}
     for table_id, body in tables:
         headings = re.findall(r"<th[^>]*>(.*?)</th>", body, re.S)
         for index, raw in enumerate(headings):
@@ -163,7 +176,7 @@ def test_shell_has_landmarks_skip_link_and_one_page_per_nav_link():
     for page in pages:  # each page has its own h1, which receives focus on navigation
         assert f'<h1 id="{page}-title" tabindex="-1">' in html
     assert html.count("<h1") == len(pages), "one h1 per page"
-    assert html.index("/static/tools.js") < html.index("/static/nav.js") < html.index("/static/holdings.js") < html.index("/static/imports.js") < html.index("/static/app.js")
+    assert html.index("/static/tools.js") < html.index("/static/nav.js") < html.index("/static/holdings.js") < html.index("/static/imports.js") < html.index("/static/settings.js") < html.index("/static/app.js")
 
 
 def test_every_table_and_control_lives_inside_a_page():
@@ -225,3 +238,22 @@ def test_import_and_holding_views_never_pass_optional_values_straight_to_replace
         js = (STATIC / name).read_text()
         for call in re.finditer(r"replaceChildren\(\n(?:[^()]|\([^()]*\))*?: null,?\n", js):
             raise AssertionError(f"{name}: replaceChildren with a possibly-null argument near: {call.group(0)[:80]!r}")
+
+
+def test_theme_is_applied_from_the_head_before_the_page_is_drawn():
+    html = (STATIC / "index.html").read_text()
+    assert html.index("/static/theme.js") < html.index("</head>"), "theme.js must load in <head> so there is no flash of the wrong theme"
+    js = (STATIC / "theme.js").read_text()
+    assert 'VALID = ["system", "light", "dark"]' in js and "portfolio.theme" in js
+
+
+def test_delete_all_uses_a_dialog_not_a_prompt_and_stays_disabled_until_the_phrase_matches():
+    html, js = (STATIC / "index.html").read_text(), "".join(p.read_text() for p in JS)
+    assert "<dialog" in html and "prompt(" not in js
+    assert re.search(r'id="delete-confirm"[^>]*\bdisabled\b', html)
+    assert "delete all data" in js and "showModal()" in js
+
+
+def test_danger_button_text_is_readable_in_both_themes():
+    for name, t in zip(("light", "dark"), _theme_colours()):
+        assert contrast(t["bg"], t["loss"]) >= 4.5, f"{name}: danger button text"

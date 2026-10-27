@@ -225,7 +225,7 @@ async function removeStatement(s) {
 const EVENT_LABEL = {
   statement_imported: "Statement imported", statement_duplicate: "Same file uploaded again (no change)",
   statement_rejected: "Statement could not be read", statement_deleted: "Statement deleted",
-  prices_refreshed: "Prices refreshed", prices_failed: "Price refresh failed", data_deleted: "All data deleted",
+  prices_refreshed: "Prices refreshed", backup_created: "Backup made", prices_failed: "Price refresh failed", data_deleted: "All data deleted",
 };
 const REJECT_REASON = {
   wrong_password: "The password was wrong.", unreadable: "The file could not be read.",
