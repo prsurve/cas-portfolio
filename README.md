@@ -68,6 +68,23 @@ PYTHONPATH=src .venv/bin/python -m portfolio.importers.cas statement.pdf --save 
 PYTHONPATH=src .venv/bin/python -m portfolio.importers.cas statement.pdf --diagnose  # list ISINs in the PDF that weren't imported
 ```
 
+## Backups
+
+The database is the only parsed copy of your statements, so back it up.
+
+```bash
+PYTHONPATH=src .venv/bin/python -m portfolio.backup create    # a verified copy, safe while the app runs
+PYTHONPATH=src .venv/bin/python -m portfolio.backup list
+PYTHONPATH=src .venv/bin/python -m portfolio.backup check     # integrity check of the live database
+PYTHONPATH=src .venv/bin/python -m portfolio.backup restore data/backups/portfolio-<stamp>.db --force
+```
+
+- Backups go to `data/backups/` (private, git-ignored); the newest 14 are kept (`PORTFOLIO_BACKUP_KEEP`).
+- **Keep copies off the device, encrypted.** Set `PORTFOLIO_BACKUP_GPG_RECIPIENT` to a gpg public key and backups are encrypted to it; the plaintext copy is deleted, and if encryption fails none is left behind. The Pi needs only the public key. Keep the private key somewhere else: you need it to restore. Then copy the `.gpg` files anywhere.
+- **Restore:** stop the app first. The backup is verified before anything is replaced, an existing database is only replaced with `--force`, and it is kept beside the restored one (`.before-restore-<time>`).
+- `GET /healthz` reports `ok` or `degraded` (HTTP 503), the database schema version and the age of the newest backup in days. It shows no portfolio data, so a monitor can poll it.
+- Backing up on a schedule is up to you for now (for example a daily cron job running the `create` command).
+
 ## Privacy
 
 - The PDF is parsed in memory and never written to disk. The password is used only to open it.

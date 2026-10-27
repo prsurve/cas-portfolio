@@ -196,6 +196,19 @@ class Store:
                     f"WHERE {column} IS NOT NULL"))
         conn.execute(text(f"PRAGMA user_version = {SQLITE_SCHEMA_VERSION}"))
 
+    def quick_check(self) -> str:
+        """"ok", or the database's own description of the damage (kept out of API responses)."""
+        if self.engine.dialect.name != "sqlite":
+            return "ok"
+        with self.engine.connect() as conn:
+            return conn.execute(text("PRAGMA quick_check")).scalar() or "no result"
+
+    def schema_version(self) -> int | None:
+        if self.engine.dialect.name != "sqlite":
+            return None
+        with self.engine.connect() as conn:
+            return conn.execute(text("PRAGMA user_version")).scalar()
+
     def audit(self, event: str, detail: str | None = None) -> None:
         with self.engine.begin() as conn:
             conn.execute(insert(audit_log).values(ts=utcnow(), event=event, detail=detail))

@@ -44,3 +44,10 @@ def test_forbidden_file_types_are_flagged(tmp_path, monkeypatch):
 
 def test_report_never_echoes_the_value(tmp_path, monkeypatch):
     assert "QWERT9876Z" not in "".join(_check(tmp_path, monkeypatch, "a.txt", "QWERT9876Z\n"))  # privacy-ok
+
+
+def test_gitignore_covers_private_files():
+    """CLAUDE.md: confirm .gitignore still covers these before any push."""
+    ignored = (ROOT / ".gitignore").read_text().split()
+    for pattern in ("*.pdf", "data/", "*.db", ".env"):
+        assert pattern in ignored, f".gitignore no longer lists {pattern}"
