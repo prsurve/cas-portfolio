@@ -114,6 +114,9 @@
               </select>
             </label>
             <label>Fund house <select id="holdings-amc"></select></label>
+            <label>View <select id="views-select"></select></label>
+            <button type="button" class="btn" id="view-save">Save view…</button>
+            <button type="button" class="btn" id="view-delete" hidden>Delete view</button>
             <label class="filter"><input type="checkbox" id="holdings-multi"> In more than one account or folio</label>
             <button type="button" class="btn" id="holdings-csv">Export CSV</button>
             <span class="subtle" id="holdings-count" role="status" aria-live="polite"></span>
@@ -138,6 +141,20 @@
       </div>
 
       <section aria-label="Holding detail" id="holding-detail" hidden></section>
+
+      <dialog id="view-dialog" aria-labelledby="view-dialog-h">
+        <form method="dialog" id="view-form">
+          <h2 id="view-dialog-h">Save this view</h2>
+          <p class="subtle">Saves the type, fund house, multi-account toggle and sort order, so you can come back to them in one step.
+            It is kept in this browser only. Search text and holdings are not saved.</p>
+          <label>Name <input type="text" id="view-name" maxlength="40" autocomplete="off"></label>
+          <p class="loss" id="view-error" role="alert"></p>
+          <div class="controls">
+            <button type="submit" class="btn primary">Save view</button>
+            <button type="button" class="btn" id="view-cancel">Cancel</button>
+          </div>
+        </form>
+      </dialog>
     </div>
 
     <div class="page" id="page-performance" data-page="performance" hidden>
@@ -337,8 +354,9 @@
             <label><input type="radio" name="theme" value="light"> Light</label>
             <label><input type="radio" name="theme" value="dark"> Dark</label>
           </fieldset>
-          <p class="subtle">Kept in this browser only: the theme and the last page you opened. No portfolio data.</p>
+          <p class="subtle">Kept in this browser only: the theme, the last page you opened, how the holdings list is sorted and filtered, your saved views and the two dates you compared. No holdings, amounts or search text.</p>
           <button type="button" class="btn" id="reset-display">Reset display settings</button>
+          <span class="subtle" id="display-status" role="status" aria-live="polite"></span>
         </div>
       </section>
 

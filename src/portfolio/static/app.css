@@ -308,3 +308,5 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.5); }
 dialog h2 { margin-top: 0; }
 dialog label { display: grid; gap: var(--space-1); font-size: 0.875rem; color: var(--muted); }
 dialog input[type="text"] { font: inherit; padding: var(--space-2); border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); }
+#view-error:empty { display: none; }
+#view-error { margin: var(--space-2) 0 0; font-size: 0.875rem; }

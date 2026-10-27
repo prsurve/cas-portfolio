@@ -257,3 +257,21 @@ def test_delete_all_uses_a_dialog_not_a_prompt_and_stays_disabled_until_the_phra
 def test_danger_button_text_is_readable_in_both_themes():
     for name, t in zip(("light", "dark"), _theme_colours()):
         assert contrast(t["bg"], t["loss"]) >= 4.5, f"{name}: danger button text"
+
+
+def test_the_page_stores_only_display_settings_in_the_browser():
+    """Remembered things are settings under the 'portfolio.' prefix. Holdings, amounts and search text never go in."""
+    scripts = {p.name: p.read_text() for p in JS}
+    for name, js in scripts.items():
+        for call in re.findall(r"(?:localStorage|sessionStorage)\.(?:setItem|getItem)\(([^)]*)\)", js):
+            assert call.startswith(("KEY", "\"portfolio.")), f"{name}: storage key outside the portfolio. prefix: {call}"
+    holdings = scripts["holdings.js"]
+    assert 'prefs.set("holdingsView", viewState())' in holdings
+    view = re.search(r"const viewState = \(\) => \(\{(.*?)\}\);", holdings).group(1)
+    assert "query" not in view, "the search text must not be part of what is remembered or saved"
+    assert "cleanView(" in holdings, "values read back from storage are checked"
+
+
+def test_saved_views_have_a_dialog_with_an_error_area():
+    html = (STATIC / "index.html").read_text()
+    assert 'id="view-dialog"' in html and 'id="view-error" role="alert"' in html and 'maxlength="40"' in html
