@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Portfolio</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <header>
+    <h1>Portfolio</h1>
+  </header>
+
+  <div id="alerts" role="status" aria-live="polite"></div>
+
+  <section aria-labelledby="upload-h" class="card">
+    <h2 id="upload-h">Upload a statement</h2>
+    <p class="subtle">
+      Upload the CAS from <strong>NSDL</strong> or <strong>CDSL</strong>: it covers stocks, ETFs, bonds and
+      mutual fund folios. A CAS from <strong>CAMS</strong> or <strong>KFintech</strong> is optional; it adds
+      mutual fund transaction history.
+      The PDF is read in memory and not stored. Neither is the password.
+    </p>
+    <form id="upload-form" class="upload" autocomplete="off">
+      <label>PDF file
+        <input type="file" id="pdf" accept="application/pdf,.pdf" required>
+      </label>
+      <label>PDF password
+        <input type="password" id="password" required autocomplete="off" spellcheck="false">
+      </label>
+      <button type="submit" class="btn primary" id="upload-btn">Upload</button>
+    </form>
+    <div id="upload-result" aria-live="polite"></div>
+  </section>
+
+  <section aria-labelledby="totals-h">
+    <h2 id="totals-h" class="sr-only">Totals</h2>
+    <div id="totals" class="tiles"></div>
+  </section>
+
+  <section aria-labelledby="alloc-h" id="alloc-section" hidden>
+    <h2 id="alloc-h">Allocation</h2>
+    <div id="allocation" class="alloc-grid"></div>
+  </section>
+
+  <section aria-labelledby="funds-h" id="funds-section" hidden>
+    <h2 id="funds-h">Mutual fund folios <span class="subtle" id="funds-asof"></span></h2>
+    <div class="table-wrap">
+      <table id="funds">
+        <thead>
+          <tr>
+            <th scope="col">Scheme</th>
+            <th scope="col" class="num">Units</th>
+            <th scope="col" class="num">NAV</th>
+            <th scope="col" class="num">Invested</th>
+            <th scope="col" class="num">Value</th>
+            <th scope="col" class="num">Gain</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="stocks-h" id="stocks-section" hidden>
+    <h2 id="stocks-h">Demat holdings <span class="subtle" id="stocks-asof"></span></h2>
+    <label class="filter"><input type="checkbox" id="multi-only"> Held in more than one demat account</label>
+    <div class="table-wrap">
+      <table id="stocks">
+        <thead>
+          <tr>
+            <th scope="col">Holding</th>
+            <th scope="col" class="num">Quantity</th>
+            <th scope="col" class="num">Price</th>
+            <th scope="col" class="num">Value</th>
+            <th scope="col" class="num">Weight</th>
+            <th scope="col">Brokers</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="statements-h">
+    <h2 id="statements-h">Imported statements</h2>
+    <div class="table-wrap">
+      <table id="statements">
+        <thead>
+          <tr>
+            <th scope="col">Issuer</th><th scope="col">Covers</th><th scope="col">Period</th>
+            <th scope="col">Imported</th><th scope="col"><span class="sr-only">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
