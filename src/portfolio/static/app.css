@@ -9,6 +9,11 @@
   --warn-bg: #fff4e5;
   --warn: #8a4b00;
   --accent: #2557d6;
+  /* categorical chart colours, fixed order; validated in light and dark against the card surface */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color-scheme: light dark;
 }
@@ -25,6 +30,10 @@
     --warn-bg: #3a2a12;
     --warn: #ffc46b;
     --accent: #7aa2ff;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
   }
 }
 
@@ -79,7 +88,7 @@ button:disabled { opacity: 0.6; cursor: wait; }
 .result ul { margin: 2px 0; padding-left: 20px; }
 .result.error { background: var(--warn-bg); color: var(--warn); }
 .result-title { font-weight: 600; }
-.alloc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.alloc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px; align-items: start; }
 caption { text-align: left; font-weight: 600; font-size: 0.8rem; color: var(--muted); padding: 10px 12px 4px; }
 
 .chart-card { padding: 16px; }
@@ -112,3 +121,19 @@ caption { text-align: left; font-weight: 600; font-size: 0.8rem; color: var(--mu
 th button.sort { all: unset; cursor: pointer; font-weight: 600; color: inherit; font-size: inherit; }
 th button.sort:hover, th button.sort:focus-visible { color: var(--text); text-decoration: underline; }
 th button.sort::after { content: " " attr(data-arrow); color: var(--accent); }
+
+/* Allocation: a stacked bar for the asset classes, a one-colour bar under each label elsewhere. The table stays as the legend. */
+.alloc-card .alloc-head { padding: 10px 12px 4px; font-weight: 600; font-size: 0.8rem; color: var(--muted); }
+.alloc-card td.label { white-space: normal; width: 62%; }
+.alloc-card .bar { height: 8px; margin-top: 6px; background: var(--series-1); border-radius: 0 4px 4px 0; }
+.stack { display: flex; gap: 2px; height: 20px; margin: 6px 12px 10px; }
+.stack .seg { flex: 1 1 0; min-width: 4px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
+.stack .seg:first-child { border-radius: 4px 0 0 4px; }
+.stack .seg:last-child { border-radius: 0 4px 4px 0; }
+.stack .seg:hover { opacity: 0.82; }
+.s0 { background: var(--muted); }
+.s1 { background: var(--series-1); }
+.s2 { background: var(--series-2); }
+.s3 { background: var(--series-3); }
+.s4 { background: var(--series-4); color: #0b0b0b; }
+.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 8px; vertical-align: baseline; }

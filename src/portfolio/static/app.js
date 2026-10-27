@@ -325,24 +325,60 @@ function renderChanges(r) {
   document.querySelector("#changes tbody").replaceChildren(...body);
 }
 
+// Allocation. Colour follows the entity, never its rank, so a filter or a new statement never repaints it.
+// Only the four asset classes get categorical colours (fixed order); every other group is one colour.
+const ASSET_SLOT = { "Stocks": 1, "Mutual funds (folios)": 2, "ETFs & demat funds": 3, "Bonds & SGBs": 4 };
+const slotOf = (label) => ASSET_SLOT[label] || 0;
+
+function allocationCard(title, rows, stacked) {
+  const tip = (r) => `${r.label}: ${money(r.value)} (${r.weight.toFixed(1)}%)`;
+  // The stack and its legend share one order (slot order), so they read the same way.
+  const ordered = stacked ? [...rows].sort((a, b) => slotOf(a.label) - slotOf(b.label)) : rows;
+  const parts = [el("div", { class: "alloc-head" }, title)];
+  if (stacked) {
+    parts.push(el("div", { class: "stack", "aria-hidden": "true" }, ordered.map((r) => {
+      const seg = el("div", { class: `seg s${slotOf(r.label)}`, title: tip(r) }, el("span", null, `${r.weight.toFixed(1)}%`));
+      seg.style.flexGrow = String(r.weight);  // CSSOM, not a style attribute: the CSP forbids those
+      return seg;
+    })));
+  }
+  // Bars compare rows with each other, so they are scaled to the biggest one. A single row is not a
+  // comparison: it stays a plain line (the number is the chart).
+  const biggest = Math.max(...rows.map((r) => r.value));
+  const withBars = !stacked && rows.length > 1;
+  parts.push(el("div", { class: "alloc-rows" },
+    el("table", null,
+      el("caption", { class: "sr-only" }, title),
+      el("tbody", null, ordered.map((r) => {
+        let bar = null;
+        if (withBars) {
+          bar = el("div", { class: "bar", title: tip(r) });
+          bar.style.width = `${Math.max((r.value / biggest) * 100, 1.5)}%`;
+        }
+        return el("tr", null,
+          el("td", { class: "label" },
+            stacked ? el("span", { class: `swatch s${slotOf(r.label)}`, "aria-hidden": "true" }) : null, r.label, bar),
+          el("td", { class: "num" }, money(r.value)),
+          el("td", { class: "num" }, `${r.weight.toFixed(1)}%`));
+      })))));
+  return el("div", { class: "table-wrap alloc-card" }, parts);
+}
+
 function renderAllocation(p) {
   const a = p.allocation;
   const groups = [
-    ["By asset class", a.asset_class.length > 1 ? a.asset_class : []],  // one class at 100% says nothing
-    ["Stocks by broker", a.broker],
-    ["Mutual funds by AMC", a.amc],
-    ["Mutual funds by type", a.fund_type],
+    ["By asset class", a.asset_class.length > 1 ? a.asset_class : [], true],  // one class at 100% says nothing
+    ["Stocks by broker", a.broker, false],
+    ["Mutual funds by AMC", a.amc, false],
+    ["Mutual funds by type", a.fund_type, false],
   ].filter(([, rows]) => rows.length > 0);
   document.getElementById("alloc-section").hidden = groups.length === 0;
-  document.getElementById("allocation").replaceChildren(...groups.map(([title, rows]) =>
-    el("div", { class: "table-wrap" },
-      el("table", null,
-        el("caption", null, title),
-        el("tbody", null, rows.map((r) =>
-          el("tr", null,
-            el("td", null, r.label),
-            el("td", { class: "num" }, money(r.value)),
-            el("td", { class: "num" }, `${r.weight.toFixed(1)}%`))))))));
+  document.getElementById("allocation").replaceChildren(...groups.map(([title, rows, stacked]) => allocationCard(title, rows, stacked)));
+  // A label goes inside a segment only if it fits with padding; otherwise the legend and tooltip carry the value.
+  for (const seg of document.querySelectorAll("#allocation .seg")) {
+    const label = seg.firstElementChild;
+    if (label && label.scrollWidth + 10 > seg.clientWidth) label.remove();
+  }
 }
 
 // A holding's value at its latest public price. No price found: a dash, never an estimate.
@@ -613,6 +649,11 @@ async function removeStatement(s) {
 }
 
 document.getElementById("refresh-prices").addEventListener("click", refreshPrices);
+let resizeTimer = null;
+window.addEventListener("resize", () => {  // segment widths change, so which labels fit does too
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => lastPortfolio && renderAllocation(lastPortfolio), 150);
+});
 document.getElementById("chg-from").addEventListener("change", loadChanges);
 document.getElementById("chg-to").addEventListener("change", loadChanges);
 document.getElementById("upload-form").addEventListener("submit", upload);

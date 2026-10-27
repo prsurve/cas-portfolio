@@ -44,7 +44,7 @@ There is no `--reload`, so restart the server after code changes. (Users of the 
 | `src/portfolio/changes.py` | `compare()`: what differs between two statement dates (two `compute_view(as_of=…)` results). Each change splits into a quantity effect and a price effect that sum exactly to the value change |
 | `src/portfolio/history.py` | `value_history()`: one point per statement date, each built with `build_view(as_of=…)` so the no-double-count rules hold |
 | `src/portfolio/app.py` | FastAPI: `POST/GET/DELETE /api/statements`, `GET /api/portfolio`, `GET /api/history`, `GET /api/changes`, `POST /api/prices/refresh`, `GET /healthz`, static page |
-| `src/portfolio/static/` | Vanilla JS/CSS page. DOM is built with `el()`; never use `innerHTML`, because the strict CSP blocks inline scripts. `tools.js` holds the DOM-free search, sort and CSV helpers (tested with node: `tests/tools.test.js`); CSV text is guarded against spreadsheet formulas |
+| `src/portfolio/static/` | Vanilla JS/CSS page. DOM is built with `el()`; never use `innerHTML`, because the strict CSP blocks inline scripts. `tools.js` holds the DOM-free search, sort and CSV helpers (tested with node: `tests/tools.test.js`); CSV text is guarded against spreadsheet formulas. **Charts** follow the dataviz rules: asset-class colours are fixed per entity (`ASSET_SLOT`), never by rank; every other group is one colour; no donuts, no dual axes, no number on every point; a label sits inside a segment only if it fits; the table is the legend. The four `--series-*` colours in `app.css` were validated with the skill's `validate_palette.js` for light and dark (`tests/test_static_rules.py` pins them: re-validate if you change one). Set widths with `element.style.x = …` (CSSOM), never a `style` attribute, which the CSP blocks |
 | `tests/conftest.py` | Fixtures built from **casparser's own pydantic models** (`CASData`, `NSDLCASData`) |
 
 ## Data model and rules
@@ -103,7 +103,7 @@ Rough priority order:
 6. **Personal-data guard:** a test or pre-commit hook that fails on PAN-shaped strings, long account IDs or `*.pdf` and `*.db` files in the commit.
 7. **App authentication** beyond Cloudflare Access (for example a passkey or single password), if it is ever exposed differently.
 8. **Off-device backups:** copy the encrypted `.gpg` files off the Pi. (An optional systemd setup for other users exists in `deploy/`; the maintainer runs the app, backups and price refresh by hand. Don't install it on the maintainer's machine.)
-9. **Allocation charts:** allocation is currently shown as tables.
+9. **Allocation charts:** done (a stacked bar for asset classes, a bar per row elsewhere, tables kept as the legend). Still open: a chart of growth by asset class over time.
 10. **Coverage of the AMC map:** extend `AMC_BY_ISSUER` when funds show "Unknown" under allocation by AMC.
 11. **NSDL statements:** parsing has only been exercised against a real CDSL statement and synthetic NSDL fixtures. Verify with a real NSDL CAS.
 12. **Postgres/Supabase:** add `psycopg` and set `PORTFOLIO_DATABASE_URL`. The schema is already portable.
