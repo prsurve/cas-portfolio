@@ -18,13 +18,13 @@ from fastapi.staticfiles import StaticFiles
 
 from portfolio.config import Settings, get_settings
 from portfolio.importers.cas import PARSER_VERSION, CasImportError, parse_pdf_bytes, save, sha256, summary
-from portfolio.backup import newest_age_days
+from portfolio.backup import BackupError, newest_age_days, safety_backup
 from portfolio.changes import compare
 from portfolio.history import value_history
 from portfolio.portfolio_view import build_view
 from portfolio.prices import PriceFetchError
 from portfolio.refresh import refresh_all
-from portfolio.store import Store, as_utc
+from portfolio.store import Store, as_utc, sqlite_file
 
 STATIC_DIR = Path(__file__).parent / "static"
 PASSWORD_HEADER = "X-PDF-Password"
@@ -46,7 +46,8 @@ def create_app(settings: Settings | None = None, store: Store | None = None,
     if store is None:
         if settings.database_url.startswith("sqlite:///./"):
             Path(settings.database_url.removeprefix("sqlite:///")).parent.mkdir(parents=True, exist_ok=True)
-        store = Store.from_url(settings.database_url)
+        store = Store.from_url(settings.database_url, before_upgrade=lambda path: safety_backup(
+            path, Path(settings.backup_dir), settings.backup_gpg_recipient))
     max_bytes = settings.max_upload_mb * 1024 * 1024
 
     app = FastAPI(title="Portfolio", docs_url=None, redoc_url=None, openapi_url=None)
@@ -138,7 +139,16 @@ def create_app(settings: Settings | None = None, store: Store | None = None,
             body = None
         if not isinstance(body, dict) or body.get("confirm") != DELETE_PHRASE:
             raise HTTPException(400, f'Send {{"confirm": "{DELETE_PHRASE}"}} to delete everything')
-        return {"status": "deleted", "removed": store.delete_all()}
+        # A verified copy first. If it cannot be made, nothing is deleted.
+        saved = None
+        db_file = sqlite_file(store.engine)
+        if db_file is not None:
+            try:
+                saved = safety_backup(db_file, Path(settings.backup_dir), settings.backup_gpg_recipient).name
+            except BackupError:
+                raise HTTPException(503, "Could not make a backup first, so nothing was deleted. "
+                                         "Check the backup folder and gpg key, then try again.")
+        return {"status": "deleted", "removed": store.delete_all(), "backup": saved}
 
     @app.get("/api/portfolio")
     def portfolio() -> dict[str, Any]:

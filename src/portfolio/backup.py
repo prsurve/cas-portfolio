@@ -76,6 +76,12 @@ def newest_age_days(dest: Path, now: datetime | None = None) -> int | None:
     return max(0, ((now or _now()) - written).days)
 
 
+def safety_backup(path: Path, dest: Path, recipient: str | None = None) -> Path:
+    """A copy taken just before something destructive (delete all, schema upgrade).
+    Never pruned by retention, so it cannot push out other backups or be removed by this call."""
+    return create_backup(path, dest, recipient=recipient, keep=None)
+
+
 def _gpg(gpg: str, args: list[str], what: str) -> None:
     try:
         run = subprocess.run([gpg, "--batch", "--yes", *args], capture_output=True, text=True, timeout=GPG_TIMEOUT)

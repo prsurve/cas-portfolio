@@ -74,3 +74,34 @@ def test_reopening_an_upgraded_database_changes_nothing(tmp_path):
     for key in ("statements", "stock_holdings", "mf_holdings", "mf_transactions"):
         assert after[key] == before[key]
     assert again.schema_version() == first.schema_version()
+
+
+def test_upgrade_takes_a_backup_first_and_a_current_database_does_not(tmp_path):
+    db = tmp_path / "old.db"
+    _first_release_db(db)
+    taken = []
+
+    def hook(path):
+        # the file must still be the old, unmigrated one when the hook runs
+        taken.append((path, sqlite3.connect(path).execute("PRAGMA user_version").fetchone()[0]))
+
+    Store.from_url(f"sqlite:///{db}", before_upgrade=hook)
+    assert taken == [(db, 0)]
+    Store.from_url(f"sqlite:///{db}", before_upgrade=hook)  # already current
+    assert len(taken) == 1
+    Store.from_url(f"sqlite:///{tmp_path / 'new.db'}", before_upgrade=hook)  # brand new file
+    assert len(taken) == 1
+
+
+def test_failed_pre_upgrade_backup_leaves_the_database_untouched(tmp_path):
+    import pytest
+    db = tmp_path / "old.db"
+    _first_release_db(db)
+    before = db.read_bytes()
+
+    def broken(path):
+        raise RuntimeError("no space")
+
+    with pytest.raises(RuntimeError):
+        Store.from_url(f"sqlite:///{db}", before_upgrade=broken)
+    assert db.read_bytes() == before

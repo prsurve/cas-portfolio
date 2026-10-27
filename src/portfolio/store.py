@@ -6,8 +6,11 @@ addresses and full folio/client numbers are never written.
 
 from __future__ import annotations
 
+import sqlite3
+from collections.abc import Callable
 from datetime import date, datetime, timezone
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 from sqlalchemy import (
@@ -152,16 +155,49 @@ def as_utc(value: datetime | None) -> datetime | None:
     return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
 
 
+def sqlite_file(engine: Engine) -> Path | None:
+    """The database file of a SQLite engine, or None (other databases, in-memory)."""
+    database = engine.url.database
+    if engine.dialect.name != "sqlite" or not database or database == ":memory:":
+        return None
+    return Path(database)
+
+
+def needs_upgrade(path: Path) -> bool:
+    """True if an existing, non-empty SQLite file lacks a table or column the code expects,
+    or has not had the money conversion yet. A new or empty file is not an upgrade."""
+    if not path.is_file() or path.stat().st_size == 0:
+        return False
+    con = sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True)
+    try:
+        existing = {name: {row[1] for row in con.execute(f'PRAGMA table_info("{name}")')}
+                    for (name,) in con.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+        if not existing:
+            return False
+        if con.execute("PRAGMA user_version").fetchone()[0] < SQLITE_SCHEMA_VERSION:
+            return True
+    finally:
+        con.close()
+    return any(table.name not in existing or {c.name for c in table.columns} - existing[table.name]
+               for table in metadata.tables.values())
+
+
 class Store:
     def __init__(self, engine: Engine) -> None:
         self.engine = engine
 
     @classmethod
-    def from_url(cls, url: str) -> Store:
+    def from_url(cls, url: str, before_upgrade: Callable[[Path], object] | None = None) -> Store:
+        """Open the database. `before_upgrade(path)` runs first when an existing SQLite file
+        needs schema changes, so a safety copy exists; if it raises, nothing is changed."""
         kwargs: dict[str, Any] = {}
         if url.startswith("sqlite"):
             kwargs["connect_args"] = {"check_same_thread": False}
-        store = cls(create_engine(url, **kwargs))
+        engine = create_engine(url, **kwargs)
+        path = sqlite_file(engine)
+        if before_upgrade and path and needs_upgrade(path):
+            before_upgrade(path)
+        store = cls(engine)
         metadata.create_all(store.engine)
         store._migrate()
         return store

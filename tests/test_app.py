@@ -16,7 +16,7 @@ PDF = b"%PDF-1.7 fake statement bytes"
 @pytest.fixture
 def env(tmp_path, monkeypatch, mf_data, demat_data):
     db = tmp_path / "app.db"
-    settings = Settings(database_url=f"sqlite:///{db}", max_upload_mb=1, _env_file=None)
+    settings = Settings(database_url=f"sqlite:///{db}", max_upload_mb=1, backup_dir=str(tmp_path / "backups"), _env_file=None)
     store = Store.from_url(settings.database_url)
     current = {"data": mf_data}
 
@@ -188,3 +188,30 @@ def test_delete_all_needs_the_phrase_and_keeps_the_audit_log(env):
     assert all(data[t] == [] for t in ("statements", "stock_holdings", "mf_holdings", "mf_transactions", "statement_accounts", "prices"))
     assert [a["event"] for a in data["audit_log"]][-1] == "data_deleted"
     assert client.get("/api/portfolio").status_code == 200
+
+
+def test_delete_all_takes_a_verified_backup_first(env, tmp_path):
+    client, store, _, _ = env
+    client.post("/api/statements", content=PDF, headers=HEADERS)
+    h = {"X-Requested-With": "portfolio"}
+    r = client.request("DELETE", "/api/data", headers=h, json={"confirm": "delete all data"})
+    assert r.status_code == 200
+    [saved] = list((tmp_path / "backups").glob("portfolio-*.db"))
+    assert r.json()["backup"] == saved.name
+    from portfolio.backup import check_database
+    assert check_database(saved) == []
+    assert Store.from_url(f"sqlite:///{saved}").list_statements() != []  # the copy still holds the data
+
+
+def test_delete_all_is_refused_when_the_backup_fails(env, tmp_path, monkeypatch):
+    client, store, _, _ = env
+    client.post("/api/statements", content=PDF, headers=HEADERS)
+    import portfolio.app as app_module
+    from portfolio.backup import BackupError
+
+    def broken(*args, **kwargs):
+        raise BackupError("disk full")
+    monkeypatch.setattr(app_module, "safety_backup", broken)
+    r = client.request("DELETE", "/api/data", headers={"X-Requested-With": "portfolio"}, json={"confirm": "delete all data"})
+    assert r.status_code == 503 and "nothing was deleted" in r.json()["detail"]
+    assert len(client.get("/api/statements").json()["statements"]) == 1
