@@ -246,6 +246,12 @@ class Store:
         with self.engine.connect() as conn:
             return conn.execute(text("PRAGMA user_version")).scalar()
 
+    def recent_audit(self, limit: int) -> list[dict[str, Any]]:
+        """The newest audit events first."""
+        with self.engine.connect() as conn:
+            rows = conn.execute(select(audit_log).order_by(audit_log.c.id.desc()).limit(limit))
+            return [dict(r) for r in rows.mappings()]
+
     def audit(self, event: str, detail: str | None = None) -> None:
         with self.engine.begin() as conn:
             conn.execute(insert(audit_log).values(ts=utcnow(), event=event, detail=detail))

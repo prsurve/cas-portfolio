@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 
 STATIC = Path(__file__).resolve().parent.parent / "src" / "portfolio" / "static"
-JS = [STATIC / "app.js", STATIC / "tools.js", STATIC / "nav.js", STATIC / "holdings.js"]
+JS = [STATIC / "app.js", STATIC / "tools.js", STATIC / "nav.js", STATIC / "holdings.js", STATIC / "imports.js"]
 
 # Validated with the dataviz skill's scripts/validate_palette.js against this app's card surfaces
 # (adjacent pairs, light #ffffff and dark #1f1f1d). Change a hex and the check must be run again.
@@ -57,7 +57,7 @@ def test_every_table_column_has_a_phone_label():
     js = "".join(p.read_text() for p in JS)
     assert "@media (max-width: 640px)" in (STATIC / "app.css").read_text()
     tables = re.findall(r'<table id="(\w+)" class="cards">(.*?)</table>', html, re.S)
-    assert {t[0] for t in tables} == {"history", "changes", "holdings", "statements"}
+    assert {t[0] for t in tables} == {"history", "changes", "holdings", "statements", "audit"}
     for table_id, body in tables:
         headings = re.findall(r"<th[^>]*>(.*?)</th>", body, re.S)
         for index, raw in enumerate(headings):
@@ -163,7 +163,7 @@ def test_shell_has_landmarks_skip_link_and_one_page_per_nav_link():
     for page in pages:  # each page has its own h1, which receives focus on navigation
         assert f'<h1 id="{page}-title" tabindex="-1">' in html
     assert html.count("<h1") == len(pages), "one h1 per page"
-    assert html.index("/static/tools.js") < html.index("/static/nav.js") < html.index("/static/holdings.js") < html.index("/static/app.js")
+    assert html.index("/static/tools.js") < html.index("/static/nav.js") < html.index("/static/holdings.js") < html.index("/static/imports.js") < html.index("/static/app.js")
 
 
 def test_every_table_and_control_lives_inside_a_page():
@@ -217,3 +217,11 @@ def test_nothing_that_can_be_null_is_passed_straight_to_replaceChildren():
     js = (STATIC / "holdings.js").read_text()
     detail = js[js.index("function renderHoldingDetail"):js.index("// Shows the list")]
     assert detail.count("replaceChildren(el(") == 1, "the detail view builds one el() wrapper"
+
+
+def test_import_and_holding_views_never_pass_optional_values_straight_to_replaceChildren():
+    """A ternary that can give null as a direct argument prints the word 'null' on the page (seen twice)."""
+    for name in ("imports.js", "holdings.js"):
+        js = (STATIC / name).read_text()
+        for call in re.finditer(r"replaceChildren\(\n(?:[^()]|\([^()]*\))*?: null,?\n", js):
+            raise AssertionError(f"{name}: replaceChildren with a possibly-null argument near: {call.group(0)[:80]!r}")

@@ -201,13 +201,36 @@
     <div class="page" id="page-imports" data-page="imports" hidden>
       <h1 id="imports-title" tabindex="-1">Imports</h1>
       <section aria-labelledby="upload-h" class="card">
-        <h2 id="upload-h">Upload a statement</h2>
-        <p class="subtle">
-          Upload the CAS from <strong>NSDL</strong> or <strong>CDSL</strong>: it covers stocks, ETFs, bonds and
-          mutual fund folios. A CAS from <strong>CAMS</strong> or <strong>KFintech</strong> is optional; it adds
-          mutual fund transaction history.
-          The PDF is read in memory and not stored. Neither is the password.
-        </p>
+        <h2 id="upload-h">Add a statement</h2>
+        <ol id="steps" class="stepper" aria-label="Steps">
+          <li data-step="file"><span class="n">1</span> Choose the file</li>
+          <li data-step="check"><span class="n">2</span> Check what was read</li>
+          <li data-step="saved"><span class="n">3</span> Saved</li>
+        </ol>
+        <p class="subtle">Nothing is saved until you have seen what was read. The PDF is read in memory and not stored. Neither is the password.</p>
+        <details class="help">
+          <summary>Which files, which password, what about duplicates?</summary>
+          <h3>Files this app reads</h3>
+          <ul>
+            <li><strong>NSDL or CDSL</strong> consolidated account statement (PDF): stocks, ETFs, bonds, sovereign gold bonds and the mutual fund folios section. This is the one to start with.</li>
+            <li><strong>CAMS or KFintech</strong> statement (PDF, detailed): mutual funds with their transactions. Optional, and it adds transaction history.</li>
+            <li>Not read: spreadsheets, screenshots, contract notes and broker profit and loss reports.</li>
+          </ul>
+          <h3>The password</h3>
+          <ul>
+            <li>NSDL and CDSL statements use your PAN in capitals. CAMS and KFintech use the password you chose when you asked for the statement.</li>
+            <li>It is tried as you type it, then in capitals. It is sent only to this app on your machine, used to open the file, and never stored or logged.</li>
+          </ul>
+          <h3>Duplicates and overlaps</h3>
+          <ul>
+            <li>The same file twice changes nothing. A file read by an older version of this app is replaced with a fuller read.</li>
+            <li>Statements are never added together. Stocks come from the newest demat statement, and mutual funds from one statement (the newest, CAMS or KFintech first on the same date), so overlapping periods are not counted twice.</li>
+          </ul>
+          <h3>Warnings</h3>
+          <ul>
+            <li>After each read the app compares the total printed on the statement with the rows it read. A gap means some rows were not recognised, and values may be too low. You can still save it; the gap stays listed on the Overview until a statement reads fully.</li>
+          </ul>
+        </details>
         <form id="upload-form" class="upload" autocomplete="off">
           <label>PDF file
             <input type="file" id="pdf" accept="application/pdf,.pdf" required>
@@ -215,10 +238,11 @@
           <label>PDF password
             <input type="password" id="password" required autocomplete="off" spellcheck="false">
           </label>
-          <button type="submit" class="btn primary" id="upload-btn">Upload</button>
+          <button type="submit" class="btn primary" id="upload-btn">Check statement</button>
         </form>
         <div id="upload-result" aria-live="polite" tabindex="-1"></div>
       </section>
+
       <section aria-labelledby="statements-h">
         <h2 id="statements-h">Imported statements</h2>
         <div class="table-wrap">
@@ -228,6 +252,19 @@
                 <th scope="col">Issuer</th><th scope="col">Covers</th><th scope="col">Period</th>
                 <th scope="col">Imported</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th>
               </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="audit-h">
+        <h2 id="audit-h">Recent activity</h2>
+        <p class="subtle">What the app did, newest first. It records events only, never the contents of a statement. Checking a file without saving it leaves no entry.</p>
+        <div class="table-wrap">
+          <table id="audit" class="cards">
+            <thead>
+              <tr><th scope="col">Time</th><th scope="col">Event</th><th scope="col">Detail</th></tr>
             </thead>
             <tbody></tbody>
           </table>
@@ -255,6 +292,7 @@
   <script src="/static/tools.js"></script>
   <script src="/static/nav.js"></script>
   <script src="/static/holdings.js"></script>
+  <script src="/static/imports.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

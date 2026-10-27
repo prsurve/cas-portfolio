@@ -21,6 +21,7 @@ from portfolio.importers.cas import PARSER_VERSION, CasImportError, parse_pdf_by
 from portfolio.backup import BackupError, newest_age_days, safety_backup
 from portfolio.changes import compare
 from portfolio.history import value_history
+from portfolio.import_log import audit_events, statement_detail, statement_summary
 from portfolio.holdings import holding_detail
 from portfolio.portfolio_view import build_view
 from portfolio.prices import PriceFetchError
@@ -120,19 +121,20 @@ def create_app(settings: Settings | None = None, store: Store | None = None,
 
     @app.get("/api/statements")
     def statements() -> dict[str, Any]:
-        return {"statements": [
-            {
-                "id": s["id"], "issuer": s["issuer"], "kind": s["kind"], "cas_type": s["cas_type"],
-                "period_from": s["period_from"].isoformat() if s["period_from"] else None,
-                "period_to": s["period_to"].isoformat(),
-                "imported_at": as_utc(s["imported_at"]).isoformat(),
-                "parser_version": s["parser_version"],
-                # Imported by an older parser: uploading the same PDF again would read more from it.
-                "outdated": s["parser_version"] < PARSER_VERSION,
-                "warnings": s["warnings"].split("\n") if s["warnings"] else [],
-            }
-            for s in store.list_statements()
-        ]}
+        return {"statements": [statement_summary(s) for s in store.list_statements()]}
+
+    @app.get("/api/statements/{statement_id}")
+    def statement(statement_id: int) -> dict[str, Any]:
+        """One statement: what was read from it, and each printed total against the rows read."""
+        found = statement_detail(store, statement_id)
+        if found is None:
+            raise HTTPException(404, "Statement not found")
+        return found
+
+    @app.get("/api/audit")
+    def audit(limit: int = 50) -> dict[str, Any]:
+        """Recent events (import, delete, price refresh), newest first. Event names and short codes only."""
+        return {"events": audit_events(store, max(1, min(limit, 200)))}
 
     @app.delete("/api/statements/{statement_id}")
     def delete_statement(statement_id: int) -> dict[str, str]:

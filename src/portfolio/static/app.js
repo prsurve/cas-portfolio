@@ -77,69 +77,6 @@ function svgEl(tag, attrs = {}, ...children) {
   return node;
 }
 
-// ---- upload -------------------------------------------------------------------
-
-function renderUploadResult(r) {
-  const lines = [
-    el("div", { class: "result-title" },
-      `${r.created ? "Imported" : "Already imported"}: ${r.issuer} statement, ${day(r.period_from)} to ${day(r.period_to)}`),
-  ];
-  if (r.kind === "mf") {
-    lines.push(el("div", null, `${r.funds} funds in ${r.folios} folios. Value ${money(r.total_value)}` +
-      (r.total_cost !== null ? `, invested ${money(r.total_cost)}` : "") + `. ${r.transactions} transactions.`));
-  } else {
-    lines.push(el("div", null,
-      `${r.stocks} stocks, ${r.funds} ETFs/funds, ${r.bonds} bonds worth ${money(r.total_value)} ` +
-      `across ${r.accounts.length} demat account(s):`));
-    lines.push(el("ul", null, r.accounts.map((a) => {
-      const ok = Math.abs(a.gap) <= 1;
-      return el("li", { class: ok ? "" : "loss" },
-        `${a.label} ${a.client} (${a.depository}): read ${money(a.imported_value)}` +
-        ` of statement total ${money(a.statement_total)}` + (ok ? " ✓" : ` · ${money(a.gap)} missing`));
-    })));
-    if (r.folio_funds) {
-      lines.push(el("div", null, `Mutual fund folios: ${r.folio_funds} holdings worth ${money(r.folio_value)}` +
-        (r.folio_cost !== null ? `, invested ${money(r.folio_cost)}` : "") + "."));
-    }
-  }
-  for (const w of r.warnings) lines.push(el("div", { class: "loss" }, `Warning: ${w}`));
-  for (const n of r.notes) lines.push(el("div", { class: "subtle" }, n));
-  lines.push(el("div", { class: "subtle" }, "Check these totals against the PDF. If something is wrong, delete the statement below."));
-  document.getElementById("upload-result").replaceChildren(el("div", { class: "result" }, lines));
-}
-
-async function upload(event) {
-  event.preventDefault();
-  const fileInput = document.getElementById("pdf");
-  const passwordInput = document.getElementById("password");
-  const btn = document.getElementById("upload-btn");
-  const file = fileInput.files[0];
-  if (!file) return;
-  const resultBox = document.getElementById("upload-result");
-  btn.disabled = true;
-  btn.textContent = "Reading…";
-  resultBox.setAttribute("aria-busy", "true");
-  resultBox.replaceChildren(el("div", { class: "result" }, "Reading the statement. A large one can take up to a minute."));
-  try {
-    const result = await api("/api/statements", {
-      method: "POST",
-      headers: { "Content-Type": "application/pdf", "X-PDF-Password": passwordInput.value },
-      body: file,
-    });
-    renderUploadResult(result);
-    fileInput.value = "";
-    await load();
-  } catch (err) {
-    resultBox.replaceChildren(el("div", { class: "result error" }, err.message));
-  } finally {
-    resultBox.removeAttribute("aria-busy");
-    resultBox.focus();  // so the result or the error is announced and the next Tab starts after it
-    passwordInput.value = "";  // never kept in the page
-    btn.disabled = false;
-    btn.textContent = "Upload";
-  }
-}
-
 // ---- dashboard ----------------------------------------------------------------
 
 function tileEl(label, value, sub, cls) {
@@ -538,27 +475,6 @@ async function refreshPrices() {
 
 const Tools = window.PortfolioTools;
 
-function statementStatus(s) {
-  const notes = [];
-  if (s.outdated) notes.push(el("div", { class: "loss" }, "Read by an older version. Upload this PDF again to refresh it."));
-  if (s.warnings.length) notes.push(el("div", { class: "loss" }, `${s.warnings.length} warning(s)`));
-  return notes.length ? notes : "OK";
-}
-
-function renderStatements(list) {
-  const rows = list.map((s) => el("tr", null,
-    el("td", { "data-label": "Issuer" }, ISSUERS[s.issuer] || s.issuer),
-    el("td", { "data-label": "Covers" }, s.kind === "mf" ? "Mutual funds" : "Stocks"),
-    el("td", { "data-label": "Period" }, `${day(s.period_from)} – ${day(s.period_to)}`),
-    el("td", { "data-label": "Imported" }, day(s.imported_at)),
-    el("td", { "data-label": "Status" }, statementStatus(s)),
-    el("td", { class: "num" }, el("button", { type: "button", onclick: () => removeStatement(s) }, "Delete"))));
-  if (rows.length === 0) {
-    rows.push(el("tr", null, el("td", { colspan: "6", class: "empty" }, "Nothing imported yet. Upload a statement above.")));
-  }
-  document.querySelector("#statements tbody").replaceChildren(...rows);
-}
-
 function collectAlerts(p) {
   const alerts = [];
   const { demat, mf } = p.statements;
@@ -599,23 +515,13 @@ async function load() {
     renderHoldings(portfolio);
     if (currentHoldingKey !== null) showHoldings(currentHoldingKey, false);  // a reload may have changed it
     renderStatements(statements.statements);
+    loadAudit();  // not awaited: the activity list failing must not break the page
     showAlerts(collectAlerts(portfolio));
   } catch (err) {
     showLoadError(err);
   } finally {
     document.getElementById("loading").hidden = true;
   }
-}
-
-async function removeStatement(s) {
-  if (!confirm(`Delete the ${ISSUERS[s.issuer]} statement to ${day(s.period_to)}? Its holdings are removed.`)) return;
-  try {
-    await api(`/api/statements/${s.id}`, { method: "DELETE" });
-  } catch (err) {
-    showAlerts([`Delete failed: ${err.message}`]);
-    return;
-  }
-  await load();
 }
 
 async function deleteAllData() {
@@ -646,8 +552,8 @@ window.addEventListener("resize", () => {
 });
 document.getElementById("chg-from").addEventListener("change", loadChanges);
 document.getElementById("chg-to").addEventListener("change", loadChanges);
-document.getElementById("upload-form").addEventListener("submit", upload);
 initHoldings();
+initImports();
 window.Nav.init((page, arg, moveFocus) => {
   redrawSized();
   if (page === "holdings") showHoldings(arg, moveFocus);
