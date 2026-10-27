@@ -17,6 +17,7 @@ from fastapi.staticfiles import StaticFiles
 
 from portfolio.config import Settings, get_settings
 from portfolio.importers.cas import PARSER_VERSION, CasImportError, parse_pdf_bytes, save, sha256, summary
+from portfolio.history import value_history
 from portfolio.portfolio_view import build_view
 from portfolio.store import Store, as_utc
 
@@ -107,5 +108,9 @@ def create_app(settings: Settings | None = None, store: Store | None = None) -> 
     @app.get("/api/portfolio")
     def portfolio() -> dict[str, Any]:
         return build_view(store, settings.stale_after_days)
+
+    @app.get("/api/history")
+    def history() -> dict[str, Any]:
+        return {"points": value_history(store)}
 
     return app

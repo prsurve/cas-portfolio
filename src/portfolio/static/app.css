@@ -81,3 +81,12 @@ button:disabled { opacity: 0.6; cursor: wait; }
 .result-title { font-weight: 600; }
 .alloc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
 caption { text-align: left; font-weight: 600; font-size: 0.8rem; color: var(--muted); padding: 10px 12px 4px; }
+
+.chart-card { padding: 16px; }
+.chart svg { width: 100%; height: auto; display: block; }
+.chart .line { fill: none; stroke: var(--accent); stroke-width: 2; }
+.chart .dot { fill: var(--accent); stroke: var(--accent); stroke-width: 2; }
+.chart .dot.mixed { fill: var(--surface); }
+.chart .grid { stroke: var(--border); stroke-width: 1; }
+.chart text { fill: var(--muted); font-size: 11px; }
+.chart-card .table-wrap { margin-top: 12px; border: 0; }

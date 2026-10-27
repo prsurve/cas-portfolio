@@ -36,7 +36,8 @@ There is no `--reload`, so restart the server after code changes.
 | `src/portfolio/importers/cas.py` | Parses PDFs via `casparser` into `ParsedStatement`. Also holds the CLI, `diagnose`, ISIN enrichment, broker/AMC mapping and `PARSER_VERSION` |
 | `src/portfolio/store.py` | SQLAlchemy Core schema plus a tiny `_migrate()` that adds columns; SQLite now, Postgres-compatible |
 | `src/portfolio/portfolio_view.py` | Dashboard JSON: merges by ISIN or scheme, computes totals and allocation, picks the fund source |
-| `src/portfolio/app.py` | FastAPI: `POST/GET/DELETE /api/statements`, `GET /api/portfolio`, static page |
+| `src/portfolio/history.py` | `value_history()`: one point per statement date, each built with `build_view(as_of=…)` so the no-double-count rules hold |
+| `src/portfolio/app.py` | FastAPI: `POST/GET/DELETE /api/statements`, `GET /api/portfolio`, `GET /api/history`, static page |
 | `src/portfolio/static/` | Vanilla JS/CSS page. DOM is built with `el()`; never use `innerHTML`, because the strict CSP blocks inline scripts |
 | `tests/conftest.py` | Fixtures built from **casparser's own pydantic models** (`CASData`, `NSDLCASData`) |
 
@@ -84,7 +85,7 @@ There is no `--reload`, so restart the server after code changes.
 Rough priority order:
 
 1. **Prices between statements.** Revalue holdings daily from public end-of-day data: AMFI `NAVAll.txt` for funds, and the NSE/BSE bhavcopy for stocks, ETFs and SGBs. Show "statement value" next to "latest value".
-2. **Performance over time.** Each statement is already stored separately, so chart total value per statement date (month by month) and growth by asset class.
+2. **Performance over time.** Done: total value per statement date (`/api/history`, SVG chart). Still open: growth by asset class, and returns (the chart is value held, so it rises with new money too).
 3. **Mutual fund XIRR and realized gains** from `mf_transactions`. This needs a CAMS/KFintech detailed statement; the CDSL folio section has no transactions.
 4. **Stock purchase cost.** NSDL/CDSL has none. Options: import broker holdings or tradebook CSV exports (Zerodha Console, Upstox, HDFC Securities) to get average cost and stock P&L.
 5. **Vested (US stocks):** a CSV/PDF statement import with a USD→INR rate. No public API exists.

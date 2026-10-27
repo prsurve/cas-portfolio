@@ -145,10 +145,12 @@ def _jsonable(value: Any) -> Any:
     return value
 
 
-def build_view(store: Store, stale_after_days: int = 45, today: date | None = None) -> dict[str, Any]:
+def build_view(store: Store, stale_after_days: int = 45, today: date | None = None,
+               as_of: date | None = None) -> dict[str, Any]:
+    """The dashboard. With as_of, the same rules applied to the statements that existed on that date."""
     today = today or datetime.now(timezone.utc).date()
-    demat = store.latest_statement("demat")
-    candidates = [s for s in (store.latest_statement("mf"), demat) if s]
+    demat = store.latest_statement("demat", as_of)
+    candidates = [s for s in (store.latest_statement("mf", as_of), demat) if s]
     fund_rows = {s["id"]: store.rows_for(mf_holdings, s["id"]) for s in candidates}
     # Funds come from one statement only: the newest that lists any; CAMS/KFintech wins a tie.
     mf = max((s for s in candidates if fund_rows[s["id"]]),

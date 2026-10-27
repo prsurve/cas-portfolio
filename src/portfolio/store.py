@@ -219,14 +219,25 @@ class Store:
             rows = conn.execute(select(statements).order_by(statements.c.period_to.desc(), statements.c.id.desc()))
             return [dict(r) for r in rows.mappings()]
 
-    def latest_statement(self, kind: str) -> dict[str, Any] | None:
-        """The statement with the latest period end for this kind (ties: most recently imported)."""
+    def latest_statement(self, kind: str, on_or_before: date | None = None) -> dict[str, Any] | None:
+        """The statement with the latest period end for this kind (ties: most recently imported).
+
+        With on_or_before, the one that was the latest on that date.
+        """
+        query = select(statements).where(statements.c.kind == kind)
+        if on_or_before is not None:
+            query = query.where(statements.c.period_to <= on_or_before)
         with self.engine.connect() as conn:
             row = conn.execute(
-                select(statements).where(statements.c.kind == kind)
-                .order_by(statements.c.period_to.desc(), statements.c.id.desc()).limit(1)
+                query.order_by(statements.c.period_to.desc(), statements.c.id.desc()).limit(1)
             ).mappings().first()
             return dict(row) if row else None
+
+    def statement_dates(self) -> list[date]:
+        """Every distinct statement end date, oldest first."""
+        with self.engine.connect() as conn:
+            rows = conn.execute(select(statements.c.period_to).distinct().order_by(statements.c.period_to))
+            return [r[0] for r in rows]
 
     def rows_for(self, table: Table, statement_id: int) -> list[dict[str, Any]]:
         with self.engine.connect() as conn:
