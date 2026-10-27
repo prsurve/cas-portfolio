@@ -16,7 +16,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Any
 
-from portfolio.importers.cas import PARSER_VERSION
+from portfolio.importers.cas import PARSER_VERSION, inr
 from portfolio.portfolio_view import PRICE_STALE_AFTER_DAYS, _jsonable
 from portfolio.store import Store, as_utc
 
@@ -67,7 +67,7 @@ def _issues(view: dict[str, Any], extras: dict[str, Any]) -> tuple[list[dict[str
                 ["total", "allocation", "changes"],
                 "Open the statement's details on the Imports page to see which account. Some rows were not recognised, so values may be too low. "
                 "Run the command-line importer with --diagnose on the PDF to list them.",
-                "; ".join(f"{a['label']} {a['client'] or ''}: printed {a['statement_total']}, read {a['imported_value']}".replace("  ", " ")
+                "; ".join(f"{a['label']} {a['client'] or ''}: printed {inr(a['statement_total'])}, read {inr(a['imported_value'])}".replace("  ", " ")
                           for a in bad), count=len(bad)))
         f = d.get("folios") if d["available"] else None
         if f is not None:
@@ -78,7 +78,7 @@ def _issues(view: dict[str, Any], extras: dict[str, Any]) -> tuple[list[dict[str
                     "folios_gap", "attention", "The mutual fund folios section does not add up to its printed total.",
                     ["total", "allocation", "fund_gain", "changes"],
                     "Some fund rows were not recognised. Open the statement's details on the Imports page, and re-upload or run --diagnose.",
-                    f"printed {f['statement_total']}, read {f['imported_value']}"))
+                    f"printed {inr(f['statement_total'])}, read {inr(f['imported_value'])}"))
 
     s = c["stocks"]
     if s and s["without_symbol"]:
@@ -195,8 +195,7 @@ def _figures(view: dict[str, Any], issues: list[dict[str, Any]], extras: dict[st
                        f"Needs a complete transaction history. {done} of {_plural(fd['count'], 'fund')} have one; the working-out has further conditions "
                        "(units must add up, every transaction kind must be understood).", hit("xirr")))
     if c["stocks"] is not None:
-        out.append(fig("stock_gain", "unavailable", "NSDL and CDSL statements do not print what you paid for a holding.",
-                       ["A gain needs purchase cost, which these statements do not carry."]))
+        out.append(fig("stock_gain", "unavailable", "NSDL and CDSL statements do not print what you paid for a holding, and a gain needs it.", []))
     if extras["statement_dates"] < 2:
         out.append(fig("changes", "unavailable", "Needs statements from at least two dates.", []))
     else:

@@ -86,6 +86,7 @@ def test_a_gap_in_an_account_total_partly_discredits_total_allocation_and_change
     i = issue(r, "demat_gap")
     assert i["count"] == 1 and set(i["affects"]) == {"Total value", "Allocation and concentration", "Change since the previous statement"}
     assert "were not recognised" in i["action"] and "--diagnose" in i["action"]
+    assert "printed ₹36,000.00, read ₹35,400.00" in i["detail"], "amounts use rupee formatting, not raw decimals"
     assert "wrong" not in i["title"].lower(), "a gap means unrecognised rows, not that the statement is wrong"
     for id_ in ("total", "allocation", "changes"):
         f = figure(r, id_)
@@ -110,7 +111,7 @@ def test_funds_without_cost_make_the_gain_partial(tmp_path, demat_data):
 
 def test_stock_gain_is_always_unavailable_and_says_why(store):
     f = figure(report(store), "stock_gain")
-    assert f["status"] == "unavailable" and "do not print what you paid" in f["basis"]
+    assert f["status"] == "unavailable" and "do not print what you paid" in f["basis"] and f["caveats"] == []
 
 
 def test_xirr_follows_how_many_funds_have_complete_history(store):
