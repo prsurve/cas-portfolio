@@ -257,3 +257,17 @@ def test_delete_all_uses_a_dialog_not_a_prompt_and_stays_disabled_until_the_phra
 def test_danger_button_text_is_readable_in_both_themes():
     for name, t in zip(("light", "dark"), _theme_colours()):
         assert contrast(t["bg"], t["loss"]) >= 4.5, f"{name}: danger button text"
+
+
+def test_tablet_shell_override_comes_after_the_base_shell_rule():
+    """An earlier media rule silently lost to the later base rule (found by measuring the page at 900px)."""
+    css = (STATIC / "app.css").read_text()
+    base = css.index(".shell { display: grid; grid-template-columns: 176px")
+    tablet = css.rindex("@media (min-width: 641px) and (max-width: 900px)")
+    assert tablet > base and ".shell { grid-template-columns: 132px" in css[tablet:]
+
+
+def test_headings_that_receive_focus_do_not_show_a_ring():
+    css = (STATIC / "app.css").read_text()
+    assert re.search(r'h1\[tabindex="-1"\]:focus[^{]*\{\s*outline:\s*none', css)
+    assert "[tabindex]:focus-visible" in css, "other focusable things keep their ring"
