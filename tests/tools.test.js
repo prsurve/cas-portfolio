@@ -66,6 +66,19 @@ assert.equal(T.toCsv(cols, []), 'Name,Qty,"Note, x"\r\n', "headers even when the
   assert.deepEqual(seen, ["abc", "x"], "usable again after firing");
 }
 
+// debounce with the real timers must not call setTimeout with another object as `this` (browsers throw "Illegal invocation")
+{
+  const realSet = globalThis.setTimeout, realClear = globalThis.clearTimeout;
+  const log = [];
+  globalThis.setTimeout = function (f, w) { if (this !== undefined && this !== globalThis) throw new TypeError("Illegal invocation"); log.push(w); return 7; };
+  globalThis.clearTimeout = function (h) { if (this !== undefined && this !== globalThis) throw new TypeError("Illegal invocation"); log.push(`clear ${h}`); };
+  try {
+    const d = T.debounce(() => {}, 150);
+    d(); d();
+    assert.deepEqual(log, [150, "clear 7", 150]);
+  } finally { globalThis.setTimeout = realSet; globalThis.clearTimeout = realClear; }
+}
+
 // formatters: one rule for missing values, negatives, percentages and dates
 {
   const F = T.fmt;
@@ -105,6 +118,53 @@ assert.equal(T.toCsv(cols, []), 'Name,Qty,"Note, x"\r\n', "headers even when the
   for (const bad of ["", "#", "#main", "#/nope", "#/Holdings", "#/holdings/%E0%A4%A", null, undefined]) {
     assert.equal(T.parseRoute(bad, pages), null, `ignored: ${bad}`);
   }
+}
+
+// remembered settings: anything read back is checked, views are bounded, storage failures are harmless
+{
+  assert.deepEqual(T.cleanView(null), { cls: "all", amc: "all", multi: false, key: "value", dir: "desc" });
+  assert.deepEqual(T.cleanView({ cls: "mf", amc: "HDFC Mutual Fund", multi: true, key: "gain", dir: "asc" }),
+    { cls: "mf", amc: "HDFC Mutual Fund", multi: true, key: "gain", dir: "asc" });
+  assert.deepEqual(T.cleanView({ cls: "<script>", key: "drop table", dir: "sideways", multi: "yes", amc: "x".repeat(101) }),
+    { cls: "all", amc: "all", multi: false, key: "value", dir: "desc" }, "bad values fall back");
+  assert.equal(T.cleanView({ query: "secret holding name" }).query, undefined, "search text is never kept");
+
+  assert.equal(T.cleanViewName("  Gold   funds \n"), "Gold funds");
+  assert.equal(T.cleanViewName("x".repeat(80)).length, 40);
+  assert.equal(T.cleanViewName(null), "");
+
+  let views = T.addView([], "Funds by gain", { cls: "mf", key: "gain", dir: "desc" });
+  assert.equal(views.length, 1);
+  views = T.addView(views, "funds BY gain", { cls: "all" });
+  assert.equal(views.length, 1, "same name ignoring case replaces");
+  assert.equal(views[0].view.cls, "all");
+  assert.equal(T.addView(views, "   ", {}), null, "an empty name is refused");
+  assert.deepEqual(T.removeView(views, "funds BY gain"), []);
+  let many = [];
+  for (let i = 0; i < 30; i += 1) many = T.addView(many, `view ${i}`, {}) || many;
+  assert.equal(many.length, T.MAX_VIEWS, "no more than the limit");
+  assert.deepEqual(T.cleanViews("not a list"), []);
+  assert.equal(T.cleanViews([{ name: "A" }, { name: "a" }, { name: "" }, null]).length, 1, "duplicates and blanks dropped");
+
+  const data = new Map();
+  const fake = { getItem: (k) => (data.has(k) ? data.get(k) : null), setItem: (k, v) => data.set(k, String(v)), removeItem: (k) => data.delete(k),
+    get length() { return data.size; }, key: (i) => [...data.keys()][i] };
+  const prefs = T.createPrefs(fake);
+  assert.equal(prefs.get("x", "fallback"), "fallback");
+  prefs.set("view", { a: 1 });
+  assert.deepEqual(prefs.get("view", null), { a: 1 });
+  assert.ok(data.has("portfolio.view"), "keys are prefixed");
+  data.set("portfolio.theme", "dark"); data.set("other-app.setting", "keep me");
+  data.set("portfolio.broken", "{not json");
+  assert.equal(prefs.get("broken", "ok"), "ok", "unreadable JSON gives the fallback");
+  prefs.remove("view");
+  assert.equal(prefs.get("view", null), null);
+  prefs.clearAll();
+  assert.deepEqual([...data.keys()], ["other-app.setting"], "clears this app's keys and nothing else");
+  const broken = T.createPrefs(null);
+  assert.equal(broken.get("x", 7), 7); broken.set("x", 1); broken.remove("x"); broken.clearAll();  // no storage: no errors
+  const throwing = T.createPrefs({ getItem() { throw new Error("blocked"); }, setItem() { throw new Error("blocked"); } });
+  assert.equal(throwing.get("x", 3), 3); throwing.set("x", 1);
 }
 
 console.log("ok");
