@@ -50,9 +50,9 @@ Open http://127.0.0.1:8000.
 
 Settings are optional; see [.env.example](.env.example). The database is `data/portfolio.db` by default.
 
-## Run as a service
+## Optional: run as a service
 
-To keep the dashboard running, restart it after a crash or a reboot, and schedule the backup and price refresh, install the systemd **user** units. No root is needed for this, and the dashboard still listens on `127.0.0.1` only.
+You don't need this. Running the app by hand (see **Run** above) is the normal way, and nothing here is installed unless you run the installer. It is for people who want the dashboard always on, restarted after a crash or reboot, with the backup and price refresh scheduled. It uses systemd **user** units: no root is needed for them, and the dashboard still listens on `127.0.0.1` only.
 
 ```bash
 # stop any server you started by hand first (Ctrl+C): it holds port 8000
@@ -110,7 +110,7 @@ PYTHONPATH=src .venv/bin/python -m portfolio.backup restore data/backups/portfol
 - **Keep copies off the device, encrypted.** Set `PORTFOLIO_BACKUP_GPG_RECIPIENT` to a gpg public key and backups are encrypted to it; the plaintext copy is deleted, and if encryption fails none is left behind. The Pi needs only the public key. Keep the private key somewhere else: you need it to restore. Then copy the `.gpg` files anywhere.
 - **Restore:** stop the app first. The backup is verified before anything is replaced, an existing database is only replaced with `--force`, and it is kept beside the restored one (`.before-restore-<time>`).
 - `GET /healthz` reports `ok` or `degraded` (HTTP 503), the database schema version and the age of the newest backup in days. It shows no portfolio data, so a monitor can poll it.
-- The service installer below schedules a daily backup. Copying the encrypted `.gpg` files off the device is up to you.
+- Run `create` by hand whenever you like. If you use the optional service installer below, it schedules a daily backup too. Copying the encrypted `.gpg` files off the device is up to you.
 
 ## Privacy
 
