@@ -239,7 +239,7 @@ Common acceptance for every item: tests added with synthetic data, `privacy_chec
 
 **F-23 Stock cost from tradebook CSV (old item 4).** *Status: Planned.* Import broker holdings/tradebook CSV (user export), map to ISINs, store average cost per demat holding with source. Needs a mapping UI per broker format and strict validation. Effort XL. Risk: wrong matching; show unmatched rows, never guess.
 
-**F-24 Onboarding and demo mode.** *Status: New.* A synthetic in-memory portfolio served from fixtures, shown with a visible "Demo" banner, never written to the real DB. Effort M. Depends: F-06, F-07.
+**F-24 Onboarding and demo mode.** *Status: Done (`PORTFOLIO_DEMO=true`)* A synthetic in-memory portfolio served from fixtures, shown with a visible "Demo" banner, never written to the real DB. Effort M. Depends: F-06, F-07.
 
 **F-25 Release and migration safety.** *Status: Done (`docs/UPGRADING.md`; `Store.from_url` refuses a newer schema)* UPGRADING.md with steps: backup, pull, restart, check `/healthz`, rollback by restoring the backup; a startup check that refuses a database from a newer schema. Effort S. Depends: F-04.
 

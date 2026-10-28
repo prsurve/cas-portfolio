@@ -469,3 +469,5 @@ window.Nav.init((page, arg, moveFocus) => {
   else currentHoldingKey = null;  // so a reload while on another page does not fetch a detail nobody is looking at
 });
 load();
+// A visible label whenever the page shows the made-up demo portfolio. If the call fails the banner stays hidden.
+fetch("/api/mode").then((r) => r.json()).then((m) => { document.getElementById("demo-banner").hidden = !m.demo; }).catch(() => {});

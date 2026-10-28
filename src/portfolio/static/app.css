@@ -337,6 +337,9 @@ h1[tabindex="-1"]:focus, h2[tabindex="-1"]:focus, main:focus { outline: none; }
 .help-btn { margin-left: var(--space-2); min-width: 24px; min-height: 24px; padding: 0 6px; border-radius: 50%; font-size: 0.8rem; line-height: 1; vertical-align: middle; color: var(--muted); }
 .help-note { max-width: 70ch; margin: 0 0 var(--space-3); color: var(--muted); }
 
+/* Demo mode banner. */
+.demo-banner { margin: 0 0 var(--space-3); padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 6px; }
+
 /* Tablets: a narrower sidebar leaves room for the tables. Last in the file, because the base .shell rule is
    defined above and an earlier media rule would lose to it. */
 @media (min-width: 641px) and (max-width: 900px) {
