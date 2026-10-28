@@ -219,7 +219,7 @@ Common acceptance for every item: tests added with synthetic data, `privacy_chec
 
 **F-32 Quick UI fixes.** *Status: Done* Problem: small defects found in the audit that need no redesign. Solution: debounce search; fetch `/api/changes` once per data change, not on every `load()`; replace the stale "a later feature" text; do not reload after a failed delete; add focus styles for `select` and expandable rows. Effort S. Priority P1. No API or DB change. Acceptance: node test for the debounce helper; static-rule test that the focus rule covers `select` and `[tabindex]`. Risk: none to data. Depends: none.
 
-**F-15 Contextual help.** *Status: New.* A `Help` component with short definitions (statement value, latest value, cost basis, unrealised gain, XIRR, reconciliation) and limitations next to the number. A glossary lives in one JS object so wording is consistent. Effort S. Depends: F-10.
+**F-15 Contextual help.** *Status: Done (headings with a "?" and `GLOSSARY` in `tools.js`)* A `Help` component with short definitions (statement value, latest value, cost basis, unrealised gain, XIRR, reconciliation) and limitations next to the number. A glossary lives in one JS object so wording is consistent. Effort S. Depends: F-10.
 
 ### P2
 
