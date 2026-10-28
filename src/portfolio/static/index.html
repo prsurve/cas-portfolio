@@ -18,6 +18,7 @@
         <li><a href="#/holdings" data-nav="holdings">Holdings</a></li>
         <li><a href="#/performance" data-nav="performance">Performance</a></li>
         <li><a href="#/imports" data-nav="imports">Imports</a></li>
+        <li><a href="#/reports" data-nav="reports">Reports</a></li>
         <li><a href="#/settings" data-nav="settings">Settings</a></li>
       </ul>
     </nav>
@@ -192,6 +193,83 @@
               <tbody></tbody>
             </table>
           </div>
+          <h3 id="history-classes-h">By asset class</h3>
+          <div class="table-wrap" id="history-classes"></div>
+        </div>
+      </section>
+      <section aria-labelledby="drift-h" id="drift-section" hidden>
+        <h2 id="drift-h" data-help="drift">Target mix and drift</h2>
+        <p class="subtle">
+          Enter the share of your portfolio you are aiming for in each asset class (they must add up to 100%).
+          The table shows how far each class is from its target, as of the statement dates. It states a gap, not what to do about it.
+          Your targets are stored in this app's database, with your statements.
+        </p>
+        <div class="card">
+          <form id="drift-form" class="toolbar" novalidate>
+            <div id="drift-inputs" class="drift-inputs"></div>
+            <span id="drift-sum" role="status"></span>
+            <button type="submit" id="drift-save">Save targets</button>
+            <button type="button" id="drift-clear">Clear targets</button>
+          </form>
+          <p id="drift-message" class="subtle" role="status"></p>
+          <div class="table-wrap">
+            <table id="drift" class="cards">
+              <thead>
+                <tr><th scope="col">Asset class</th><th scope="col" class="num">Now</th><th scope="col" class="num">Target</th><th scope="col" class="num">Gap (points)</th><th scope="col" class="num">Gap in rupees</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+      <section aria-labelledby="stress-h" id="stress-section" hidden>
+        <h2 id="stress-h" data-help="stress">What if prices fall? (a what-if, not a forecast)</h2>
+        <p class="subtle">
+          Type a percentage for each asset class. The result is simple arithmetic on your statement values, as shown
+          below. It is an assumption you choose, not a prediction.
+        </p>
+        <div class="card">
+          <div class="toolbar">
+            <button type="button" id="stress-preset">Everything falls 20%</button>
+            <button type="button" id="stress-reset">Reset</button>
+          </div>
+          <div class="table-wrap">
+            <table id="stress" class="cards">
+              <thead>
+                <tr><th scope="col">Asset class</th><th scope="col" class="num">Now</th><th scope="col" class="num">Change in price (%)</th><th scope="col" class="num">After</th><th scope="col" class="num">Difference</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <p id="stress-summary" class="subtle" role="status"></p>
+        </div>
+      </section>
+      <section aria-labelledby="timeline-h" id="timeline-section" hidden>
+        <h2 id="timeline-h" data-help="timeline">Timeline</h2>
+        <p class="subtle">
+          Statement dates and the mutual fund transactions your CAMS or KFintech statements list, newest first.
+          Dividends and corporate actions on shares are not in these statements, so they do not appear here.
+        </p>
+        <div class="card">
+          <div class="toolbar">
+            <label>Show
+              <select id="timeline-filter">
+                <option value="all">Everything</option>
+                <option value="statement">Statements only</option>
+                <option value="transaction">Transactions only</option>
+              </select>
+            </label>
+            <span id="timeline-count" role="status"></span>
+          </div>
+          <div class="table-wrap">
+            <table id="timeline" class="cards">
+              <thead>
+                <tr><th scope="col">Date</th><th scope="col">Event</th><th scope="col">Detail</th><th scope="col" class="num">Amount</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <p><button type="button" id="timeline-more" hidden>Show more</button></p>
         </div>
       </section>
       <section aria-labelledby="returns-h" id="returns-section" hidden>
@@ -328,6 +406,43 @@
       </section>
     </div>
 
+    <div class="page" id="page-reports" data-page="reports" hidden>
+      <h1 id="reports-title" tabindex="-1">Reports</h1>
+
+      <section aria-labelledby="report-h" id="report-section">
+        <h2 id="report-h">Current report</h2>
+        <p class="subtle noprint">
+          A one-page summary of what your statements show. Use your browser's print dialog to print it or save it as a PDF.
+          Nothing is sent anywhere.
+        </p>
+        <p class="noprint"><button type="button" id="report-print">Print or save as PDF</button></p>
+        <div id="report-body" class="card report"></div>
+      </section>
+
+      <section aria-labelledby="snap-h" id="snap-section" class="noprint">
+        <h2 id="snap-h">Saved snapshots</h2>
+        <p class="subtle">
+          A snapshot keeps the figures as they are now, so you can compare them with your portfolio later.
+          It is stored in this app's database with your statements, so it is included in exports and backups
+          and removed by "delete all data".
+        </p>
+        <form id="snap-form" class="toolbar">
+          <label>Note (optional) <input type="text" id="snap-note" maxlength="80" autocomplete="off"></label>
+          <button type="submit" id="snap-save">Save snapshot</button>
+        </form>
+        <p id="snap-message" class="subtle" role="status"></p>
+        <div class="table-wrap">
+          <table id="snapshots" class="cards">
+            <thead>
+              <tr><th scope="col">Saved</th><th scope="col">Note</th><th scope="col">Statement dates</th><th scope="col" class="num">Total</th><th scope="col"><span class="sr-only">Actions</span></th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div id="snap-compare" class="card" tabindex="-1" hidden></div>
+      </section>
+    </div>
+
     <div class="page" id="page-settings" data-page="settings" hidden>
       <h1 id="settings-title" tabindex="-1">Settings</h1>
 
@@ -421,6 +536,10 @@
   <script src="/static/confidence.js"></script>
   <script src="/static/returns.js"></script>
   <script src="/static/settings.js"></script>
+  <script src="/static/stress.js"></script>
+  <script src="/static/drift.js"></script>
+  <script src="/static/reports.js"></script>
+  <script src="/static/timeline.js"></script>
   <script src="/static/app.js"></script>
   <script src="/static/help.js"></script>
 </body>

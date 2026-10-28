@@ -337,12 +337,35 @@ h1[tabindex="-1"]:focus, h2[tabindex="-1"]:focus, main:focus { outline: none; }
   table.cards tbody tr.holding[aria-expanded="false"] td:first-child::after { content: "▸"; }
 }
 
+/* Six links in the phone bar: a little smaller on the narrowest screens so no label touches its neighbour. */
+@media (max-width: 400px) {
+  .nav a { font-size: 0.66rem; letter-spacing: -0.01em; }
+}
+@media (max-width: 340px) {
+  .nav a { font-size: 0.6rem; }
+}
+
 /* Contextual help: a small "?" beside a heading opens a short definition. */
-.help-btn { margin-left: var(--space-2); min-width: 24px; min-height: 24px; padding: 0 6px; border-radius: 50%; font-size: 0.8rem; line-height: 1; vertical-align: middle; color: var(--muted); }
+button.help-btn { margin-left: var(--space-2); min-width: 32px; min-height: 32px; width: 32px; height: 32px; padding: 0 6px; border-radius: 50%; font-size: 0.8rem; line-height: 1; vertical-align: middle; color: var(--muted); }
 .help-note { max-width: 70ch; margin: 0 0 var(--space-3); color: var(--muted); }
 
 /* Demo mode banner. */
 .demo-banner { margin: 0 0 var(--space-3); padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 6px; }
+
+/* Reports: the report is plain and prints on its own, without the navigation or the controls. */
+.report h3 { margin: var(--space-4) 0 var(--space-2); }
+.report h3:first-child { margin-top: 0; }
+.facts { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-1) var(--space-4); margin: 0; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; }
+@media print {
+  .side, .noprint, #alerts, #demo-banner, #loading, .skip { display: none !important; }
+  .shell { display: block; }
+  body { padding-bottom: 0; background: #fff; color: #000; }
+  .card { border: 0; box-shadow: none; padding: 0; }
+  .report table { page-break-inside: auto; }
+  .report tr { page-break-inside: avoid; }
+}
 
 /* Tablets: a narrower sidebar leaves room for the tables. Last in the file, because the base .shell rule is
    defined above and an earlier media rule would lose to it. */

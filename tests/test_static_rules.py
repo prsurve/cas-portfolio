@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 
 STATIC = Path(__file__).resolve().parent.parent / "src" / "portfolio" / "static"
-JS = [STATIC / "app.js", STATIC / "tools.js", STATIC / "nav.js", STATIC / "holdings.js", STATIC / "imports.js", STATIC / "settings.js", STATIC / "theme.js", STATIC / "returns.js", STATIC / "confidence.js", STATIC / "help.js"]
+JS = [STATIC / "app.js", STATIC / "tools.js", STATIC / "nav.js", STATIC / "holdings.js", STATIC / "imports.js", STATIC / "settings.js", STATIC / "theme.js", STATIC / "returns.js", STATIC / "confidence.js", STATIC / "help.js", STATIC / "stress.js", STATIC / "drift.js", STATIC / "reports.js", STATIC / "timeline.js"]
 
 # Validated with the dataviz skill's scripts/validate_palette.js against this app's card surfaces
 # (adjacent pairs, light #ffffff and dark #1f1f1d). Change a hex and the check must be run again.
@@ -70,7 +70,7 @@ def test_every_table_column_has_a_phone_label():
     js = "".join(p.read_text() for p in JS)
     assert "@media (max-width: 640px)" in (STATIC / "app.css").read_text()
     tables = re.findall(r'<table id="(\w+)" class="cards">(.*?)</table>', html, re.S)
-    assert {t[0] for t in tables} == {"history", "changes", "holdings", "statements", "audit", "backups", "returns", "figures"}
+    assert {t[0] for t in tables} == {"history", "changes", "holdings", "statements", "audit", "backups", "returns", "figures", "stress", "drift", "snapshots", "timeline"}
     for table_id, body in tables:
         headings = re.findall(r"<th[^>]*>(.*?)</th>", body, re.S)
         for index, raw in enumerate(headings):
@@ -327,3 +327,10 @@ def test_every_money_tile_carries_a_date():
     js = (STATIC / "app.js").read_text()
     for label in ('tile("Mutual funds invested", money(t.mf_cost), mfDate)', "latest price as of ${day(m.as_of)}", "${pct(t.mf_gain_pct)}, ${mfDate}", "concAsOf"):
         assert label in js, f"missing date on a figure: {label}"
+
+
+def test_history_by_class_table_labels_every_value_cell():
+    """The by-asset-class table is built in JS, so the card layout's data-label has to be set there."""
+    js = (STATIC / "app.js").read_text()
+    body = js[js.index("function renderHistoryClasses"):js.index("function renderHistory(")]
+    assert body.count('"data-label": l') == 2

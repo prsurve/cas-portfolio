@@ -26,6 +26,7 @@ def value_history(store: Store) -> list[dict[str, Any]]:
             "value": t["value"],
             "demat_value": t["demat_value"],
             "mf_value": t["mf_value"],
+            "by_class": [{"label": r["label"], "value": r["value"]} for r in v["allocation"]["asset_class"]],
             "mf_source": st["mf"]["issuer"] if st["mf"] else None,
             "spread_days": a["spread_days"],
             "mixed": a["mixed"],

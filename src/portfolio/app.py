@@ -7,7 +7,9 @@ Run (bind to localhost; expose only through Cloudflare Tunnel + Access):
 
 from __future__ import annotations
 
+import json
 from datetime import date
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, Callable
 
@@ -20,6 +22,7 @@ from portfolio.config import Settings, get_settings
 from portfolio.importers.cas import PARSER_VERSION, CasImportError, parse_pdf_bytes, save, sha256, summary
 from portfolio.backup import BackupError, create_backup, newest_age_days, safety_backup
 from portfolio.changes import compare
+from portfolio.drift import InvalidTargets, clean_targets, compute_drift
 from portfolio.confidence import data_confidence
 from portfolio.confidence import data_confidence
 from portfolio.health import backup_list, system_health
@@ -27,10 +30,11 @@ from portfolio.history import value_history
 from portfolio.returns import compute_returns
 from portfolio.import_log import audit_events, statement_detail, statement_summary
 from portfolio.holdings import holding_detail
-from portfolio.portfolio_view import _jsonable, build_view, compute_view
+from portfolio.timeline import build_timeline
+from portfolio.portfolio_view import ASSET_CLASS_LABELS, _jsonable, build_view, compute_view
 from portfolio.prices import PriceFetchError
 from portfolio.refresh import refresh_all
-from portfolio.store import Store, as_utc, sqlite_file
+from portfolio.store import MAX_SNAPSHOTS, Store, as_utc, sqlite_file
 
 STATIC_DIR = Path(__file__).parent / "static"
 PASSWORD_HEADER = "X-PDF-Password"
@@ -207,6 +211,79 @@ def create_app(settings: Settings | None = None, store: Store | None = None,
     @app.get("/api/portfolio")
     def portfolio() -> dict[str, Any]:
         return build_view(store, settings.stale_after_days, concentration_alert_pct=settings.concentration_alert_pct)
+
+    def targets_payload() -> dict[str, Any]:
+        view = compute_view(store, settings.stale_after_days)
+        targets = store.get_targets()
+        return _jsonable({"classes": list(ASSET_CLASS_LABELS), "targets": targets,
+                          "drift": compute_drift(view["allocation"]["asset_class"], Decimal(str(view["totals"]["value"])), targets)})
+
+    @app.get("/api/targets")
+    def get_targets() -> dict[str, Any]:
+        """The target mix and how far the current mix is from it."""
+        return targets_payload()
+
+    @app.put("/api/targets")
+    async def put_targets(request: Request) -> dict[str, Any]:
+        """Body: {"targets": {"Stocks": 60, ...}} adding up to 100. An empty object clears them."""
+        try:
+            body = await request.json()
+        except ValueError:
+            body = None
+        if not isinstance(body, dict):
+            raise HTTPException(400, "Send a JSON object with a targets field.")
+        try:
+            store.set_targets(clean_targets(body.get("targets")))
+        except InvalidTargets as exc:
+            raise HTTPException(400, str(exc)) from None
+        return targets_payload()
+
+    @app.get("/api/snapshots")
+    def list_snapshots() -> dict[str, Any]:
+        """Saved snapshots, newest first: when, the statement dates they cover and the total. No holdings."""
+        return {"snapshots": _jsonable(store.list_snapshots()), "max": MAX_SNAPSHOTS}
+
+    @app.post("/api/snapshots")
+    async def create_snapshot(request: Request) -> JSONResponse:
+        """Save the dashboard as it is now. Optional body: {"note": "text up to 80 characters"}."""
+        try:
+            body = await request.json()
+        except ValueError:
+            body = {}
+        note = body.get("note") if isinstance(body, dict) else None
+        if note is not None and not isinstance(note, str):
+            raise HTTPException(400, "The note must be text.")
+        note = " ".join(note.split())[:80] if note else None
+        view = build_view(store, settings.stale_after_days, concentration_alert_pct=settings.concentration_alert_pct)
+        if view["statements"]["demat"] is None and view["statements"]["mf"] is None:
+            raise HTTPException(400, "There is nothing to save yet. Add a statement first.")
+        a = view["as_of"] or {}
+        snapshot_id = store.add_snapshot(note, date.fromisoformat(a["from"]) if a.get("from") else None,
+                                         date.fromisoformat(a["to"]) if a.get("to") else None,
+                                         Decimal(str(view["totals"]["value"])), json.dumps(view))
+        if snapshot_id is None:
+            raise HTTPException(409, f"{MAX_SNAPSHOTS} snapshots are already saved. Delete one first.")
+        store.audit("snapshot_saved", str(snapshot_id))
+        return JSONResponse({"id": snapshot_id}, status_code=201)
+
+    @app.get("/api/snapshots/{snapshot_id}")
+    def get_snapshot(snapshot_id: int) -> dict[str, Any]:
+        row = store.get_snapshot(snapshot_id)
+        if row is None:
+            raise HTTPException(404, "No such snapshot")
+        return _jsonable({**{k: v for k, v in row.items() if k != "payload"}, "view": json.loads(row["payload"])})
+
+    @app.delete("/api/snapshots/{snapshot_id}")
+    def delete_snapshot(snapshot_id: int) -> dict[str, bool]:
+        if not store.delete_snapshot(snapshot_id):
+            raise HTTPException(404, "No such snapshot")
+        store.audit("snapshot_deleted", str(snapshot_id))
+        return {"deleted": True}
+
+    @app.get("/api/timeline")
+    def timeline(limit: int = 500) -> dict[str, Any]:
+        """Statement end dates and mutual fund transactions, newest first (what the statements record, nothing more)."""
+        return _jsonable(build_timeline(store, max(1, min(limit, 2000))))
 
     @app.get("/api/confidence")
     def confidence() -> dict[str, Any]:

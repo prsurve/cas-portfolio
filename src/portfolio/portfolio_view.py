@@ -27,6 +27,8 @@ MIXED_DATES_AFTER_DAYS = 7
 # A NAV older than this many days (counted from today) is flagged as stale.
 PRICE_STALE_AFTER_DAYS = 7
 ASSET_LABELS = {"equity": "Stocks", "fund": "ETFs & demat funds", "bond": "Bonds & SGBs"}
+FOLIO_LABEL = "Mutual funds (folios)"
+ASSET_CLASS_LABELS = (*ASSET_LABELS.values(), FOLIO_LABEL)
 
 
 def _num(value: Decimal | None) -> float | None:
@@ -394,7 +396,7 @@ def compute_view(store: Store, stale_after_days: int = 45, today: date | None = 
         },
         "allocation": {
             "asset_class": _allocation(
-                {**{ASSET_LABELS[k]: v for k, v in by_asset.items()}, "Mutual funds (folios)": fund_totals["value"]},
+                {**{ASSET_LABELS[k]: v for k, v in by_asset.items()}, FOLIO_LABEL: fund_totals["value"]},
                 total,
             ),
             "broker": _allocation(dict(by_broker), demat_value),

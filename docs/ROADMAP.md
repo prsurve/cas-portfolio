@@ -223,19 +223,19 @@ Common acceptance for every item: tests added with synthetic data, `privacy_chec
 
 ### P2
 
-**F-16 Performance page and comparison mode.** *Status: Partial (history, changes exist).* Move history and changes here; compare two dates side by side; growth by asset class over time (old items 2 and 9). Value over time is not return, so keep the existing disclaimer until F-11/F-20 exist. Effort M. Depends: F-05.
+**F-16 Performance page and comparison mode.** *Status: Done (comparison existed; asset-class value per statement added to `/api/history` and the Performance page)* Move history and changes here; compare two dates side by side; growth by asset class over time (old items 2 and 9). Value over time is not return, so keep the existing disclaimer until F-11/F-20 exist. Effort M. Depends: F-05.
 
-**F-17 Investment timeline.** *Status: New.* Chronological list of statement imports, MF transactions, and detected changes. Dividends and corporate actions are not in CAS data reliably, so scope to what exists. Effort M. Depends: F-09, F-11.
+**F-17 Investment timeline.** *Status: Done (`timeline.py`, `/api/timeline`, Performance page)* Chronological list of statement imports, MF transactions, and detected changes. Dividends and corporate actions are not in CAS data reliably, so scope to what exists. Effort M. Depends: F-09, F-11.
 
-**F-18 Export center and report snapshots.** *Status: Partial (JSON export, table CSVs).* A Reports page: CSV per table with a header block (as-of, source, completeness note), printable HTML report (browser "Save as PDF"; no PDF library), and saved dated snapshots (`report_snapshots` table holding the computed view JSON) for later comparison. Effort L. DB: new table plus `_migrate()` and schema test. Risk: snapshots contain real figures, so they are in the DB and covered by export/delete-all/backup. Depends: F-07.
+**F-18 Export center and report snapshots.** *Status: Done (Reports page: printable report and saved snapshots; per-table CSV stays on Holdings)* A Reports page: CSV per table with a header block (as-of, source, completeness note), printable HTML report (browser "Save as PDF"; no PDF library), and saved dated snapshots (`report_snapshots` table holding the computed view JSON) for later comparison. Effort L. DB: new table plus `_migrate()` and schema test. Risk: snapshots contain real figures, so they are in the DB and covered by export/delete-all/backup. Depends: F-07.
 
 **F-19 Tax-lot explorer (B9).** *Status: New.* FIFO lots per fund from `mf_transactions` where history is complete; holding period and short/long-term flags for the user to check, not tax advice; equity lots only if a tradebook CSV is imported (old item 4). Effort XL. Depends: F-11, F-23.
 
 **F-20 Cash-flow-adjusted performance (B8).** *Status: New.* Money-weighted (XIRR) at portfolio level for funds with full history; time-weighted needs prices between flows, which statements do not give, so do not offer it. Effort L. Depends: F-11. Risk: mixing funds with and without full history gives a misleading number, so show coverage ("covers 62% of fund value").
 
-**F-21 Portfolio drift monitor (B7).** *Status: New.* User targets per asset class (table `targets`), deviations shown, no trade advice. Effort M. DB: new table. Depends: F-06.
+**F-21 Portfolio drift monitor (B7).** *Status: Done (`targets` table, `drift.py`, Performance page section)* User targets per asset class (table `targets`), deviations shown, no trade advice. Effort M. DB: new table. Depends: F-06.
 
-**F-22 Stress test (B5).** *Status: New.* Client-side calculation on the loaded view: shocks per asset class or holding, results labelled "assumption, not a prediction". Effort S-M. No DB. Depends: F-07.
+**F-22 Stress test (B5).** *Status: Done (Performance page, `stressTest` in `tools.js`)* Client-side calculation on the loaded view: shocks per asset class or holding, results labelled "assumption, not a prediction". Effort S-M. No DB. Depends: F-07.
 
 **F-23 Stock cost from tradebook CSV (old item 4).** *Status: Planned.* Import broker holdings/tradebook CSV (user export), map to ISINs, store average cost per demat holding with source. Needs a mapping UI per broker format and strict validation. Effort XL. Risk: wrong matching; show unmatched rows, never guess.
 

@@ -167,6 +167,19 @@ assert.equal(T.toCsv(cols, []), 'Name,Qty,"Note, x"\r\n', "headers even when the
   assert.equal(throwing.get("x", 3), 3); throwing.set("x", 1);
 }
 
+// ---- stress test -----------------------------------------------------------------
+const st = T.stressTest([{ label: "Stocks", value: 1000 }, { label: "Funds", value: 3000 }], { Stocks: -20, Funds: 10 });
+assert.equal(st.total, 4000);
+assert.equal(st.after, 800 + 3300);
+assert.equal(st.change, 100);
+assert.equal(st.changePct, 2.5);
+assert.equal(st.rows[0].change, -200);
+const none = T.stressTest([{ label: "Stocks", value: 1000 }], {});
+assert.equal(none.change, 0, "no shock, no change");
+assert.equal(T.stressTest([{ label: "A", value: 100 }], { A: -250 }).after, 0, "a loss is capped at 100%");
+assert.equal(T.stressTest([{ label: "A", value: 100 }], { A: NaN }).after, 100, "a bad number counts as no shock");
+assert.equal(T.stressTest([], {}).changePct, null, "an empty portfolio has no percentage");
+
 // ---- glossary ---------------------------------------------------------------------
 for (const [k, v] of Object.entries(T.GLOSSARY)) assert.ok(typeof v === "string" && v.length > 20 && v.length < 400, `glossary ${k} is a short sentence`);
 

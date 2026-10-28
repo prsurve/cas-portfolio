@@ -3,8 +3,8 @@
 // Page navigation by URL hash (#/overview, #/holdings, ...). Every page is already in index.html; this only
 // shows one, marks its link as current, sets the title and moves focus to the page heading. No data is fetched here.
 (function () {
-  const PAGES = ["overview", "holdings", "performance", "imports", "settings"];
-  const TITLES = { overview: "Overview", holdings: "Holdings", performance: "Performance", imports: "Imports", settings: "Settings" };
+  const PAGES = ["overview", "holdings", "performance", "imports", "reports", "settings"];
+  const TITLES = { overview: "Overview", holdings: "Holdings", performance: "Performance", imports: "Imports", reports: "Reports", settings: "Settings" };
   const KEY = "portfolio.lastPage";  // only a page name: nothing about the portfolio
   const route = (hash) => window.PortfolioTools.parseRoute(hash, PAGES);
 
