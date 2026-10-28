@@ -148,6 +148,20 @@ targets = Table(
     Column("pct", NUM, nullable=False),
 )
 
+# A saved copy of the dashboard figures as they stood on a day, for comparing later. `payload` is the JSON of
+# build_view, so it holds real figures: it is exported, backed up and removed by delete-all like everything else.
+report_snapshots = Table(
+    "report_snapshots", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("taken_at", DateTime(timezone=True), nullable=False),
+    Column("note", String(80)),
+    Column("as_of_from", Date),
+    Column("as_of_to", Date),
+    Column("total", NUM, nullable=False),
+    Column("payload", Text, nullable=False),
+)
+MAX_SNAPSHOTS = 100
+
 CHILD_TABLES = (stock_holdings, mf_holdings, mf_transactions, statement_accounts)
 
 
@@ -306,7 +320,7 @@ class Store:
         with self.engine.connect() as conn:
             for name, table in (("statements", statements), ("demat_rows", stock_holdings), ("fund_rows", mf_holdings),
                                 ("transactions", mf_transactions), ("account_checks", statement_accounts),
-                                ("prices", prices), ("audit_events", audit_log)):
+                                ("prices", prices), ("snapshots", report_snapshots), ("audit_events", audit_log)):
                 counts[name] = conn.execute(select(func.count()).select_from(table)).scalar() or 0
         return counts
 
@@ -431,6 +445,31 @@ class Store:
                 conn.execute(delete(table).where(table.c.statement_id == statement_id))
             return (conn.execute(delete(statements).where(statements.c.id == statement_id)).rowcount or 0) > 0
 
+    def add_snapshot(self, note: str | None, as_of_from: date | None, as_of_to: date | None, total: Decimal, payload: str) -> int | None:
+        """Save a snapshot and return its id, or None when MAX_SNAPSHOTS are already kept."""
+        from sqlalchemy import func
+        with self.engine.begin() as conn:
+            if (conn.execute(select(func.count()).select_from(report_snapshots)).scalar() or 0) >= MAX_SNAPSHOTS:
+                return None
+            return conn.execute(insert(report_snapshots).values(
+                taken_at=utcnow(), note=note, as_of_from=as_of_from, as_of_to=as_of_to, total=total, payload=payload,
+            )).inserted_primary_key[0]
+
+    def list_snapshots(self) -> list[dict[str, Any]]:
+        """Newest first, without the payload."""
+        cols = [c for c in report_snapshots.c if c.name != "payload"]
+        with self.engine.connect() as conn:
+            return [dict(r) for r in conn.execute(select(*cols).order_by(report_snapshots.c.id.desc())).mappings()]
+
+    def get_snapshot(self, snapshot_id: int) -> dict[str, Any] | None:
+        with self.engine.connect() as conn:
+            row = conn.execute(select(report_snapshots).where(report_snapshots.c.id == snapshot_id)).mappings().first()
+            return dict(row) if row else None
+
+    def delete_snapshot(self, snapshot_id: int) -> bool:
+        with self.engine.begin() as conn:
+            return (conn.execute(delete(report_snapshots).where(report_snapshots.c.id == snapshot_id)).rowcount or 0) > 0
+
     def get_targets(self) -> dict[str, Decimal]:
         with self.engine.connect() as conn:
             return {r["asset_class"]: Decimal(r["pct"]) for r in conn.execute(select(targets).order_by(targets.c.asset_class)).mappings()}
@@ -446,7 +485,7 @@ class Store:
         """Every table as JSON-safe rows (money as exact decimal strings). Only masked IDs are stored, so only they appear."""
         out: dict[str, Any] = {"exported_at": utcnow().isoformat(), "schema_version": self.schema_version()}
         with self.engine.connect() as conn:
-            for table in (statements, stock_holdings, mf_holdings, mf_transactions, statement_accounts, prices, targets, audit_log):
+            for table in (statements, stock_holdings, mf_holdings, mf_transactions, statement_accounts, prices, targets, report_snapshots, audit_log):
                 out[table.name] = [
                     {k: _export_value(v) for k, v in row.items()}
                     for row in conn.execute(select(table).order_by(*table.primary_key.columns)).mappings()
@@ -457,7 +496,7 @@ class Store:
         """Remove every statement, holding, transaction and price. The audit log stays, with one row recording this."""
         removed: dict[str, int] = {}
         with self.engine.begin() as conn:
-            for table in (*CHILD_TABLES, statements, prices, targets):
+            for table in (*CHILD_TABLES, statements, prices, targets, report_snapshots):
                 removed[table.name] = conn.execute(delete(table)).rowcount or 0
             conn.execute(insert(audit_log).values(ts=utcnow(), event="data_deleted", detail=f"{removed['statements']} statements"))
         return removed

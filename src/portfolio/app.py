@@ -7,6 +7,7 @@ Run (bind to localhost; expose only through Cloudflare Tunnel + Access):
 
 from __future__ import annotations
 
+import json
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -32,7 +33,7 @@ from portfolio.holdings import holding_detail
 from portfolio.portfolio_view import ASSET_CLASS_LABELS, _jsonable, build_view, compute_view
 from portfolio.prices import PriceFetchError
 from portfolio.refresh import refresh_all
-from portfolio.store import Store, as_utc, sqlite_file
+from portfolio.store import MAX_SNAPSHOTS, Store, as_utc, sqlite_file
 
 STATIC_DIR = Path(__file__).parent / "static"
 PASSWORD_HEADER = "X-PDF-Password"
@@ -235,6 +236,48 @@ def create_app(settings: Settings | None = None, store: Store | None = None,
         except InvalidTargets as exc:
             raise HTTPException(400, str(exc)) from None
         return targets_payload()
+
+    @app.get("/api/snapshots")
+    def list_snapshots() -> dict[str, Any]:
+        """Saved snapshots, newest first: when, the statement dates they cover and the total. No holdings."""
+        return {"snapshots": _jsonable(store.list_snapshots()), "max": MAX_SNAPSHOTS}
+
+    @app.post("/api/snapshots")
+    async def create_snapshot(request: Request) -> JSONResponse:
+        """Save the dashboard as it is now. Optional body: {"note": "text up to 80 characters"}."""
+        try:
+            body = await request.json()
+        except ValueError:
+            body = {}
+        note = body.get("note") if isinstance(body, dict) else None
+        if note is not None and not isinstance(note, str):
+            raise HTTPException(400, "The note must be text.")
+        note = " ".join(note.split())[:80] if note else None
+        view = build_view(store, settings.stale_after_days, concentration_alert_pct=settings.concentration_alert_pct)
+        if view["statements"]["demat"] is None and view["statements"]["mf"] is None:
+            raise HTTPException(400, "There is nothing to save yet. Add a statement first.")
+        a = view["as_of"] or {}
+        snapshot_id = store.add_snapshot(note, date.fromisoformat(a["from"]) if a.get("from") else None,
+                                         date.fromisoformat(a["to"]) if a.get("to") else None,
+                                         Decimal(str(view["totals"]["value"])), json.dumps(view))
+        if snapshot_id is None:
+            raise HTTPException(409, f"{MAX_SNAPSHOTS} snapshots are already saved. Delete one first.")
+        store.audit("snapshot_saved", str(snapshot_id))
+        return JSONResponse({"id": snapshot_id}, status_code=201)
+
+    @app.get("/api/snapshots/{snapshot_id}")
+    def get_snapshot(snapshot_id: int) -> dict[str, Any]:
+        row = store.get_snapshot(snapshot_id)
+        if row is None:
+            raise HTTPException(404, "No such snapshot")
+        return _jsonable({**{k: v for k, v in row.items() if k != "payload"}, "view": json.loads(row["payload"])})
+
+    @app.delete("/api/snapshots/{snapshot_id}")
+    def delete_snapshot(snapshot_id: int) -> dict[str, bool]:
+        if not store.delete_snapshot(snapshot_id):
+            raise HTTPException(404, "No such snapshot")
+        store.audit("snapshot_deleted", str(snapshot_id))
+        return {"deleted": True}
 
     @app.get("/api/confidence")
     def confidence() -> dict[str, Any]:

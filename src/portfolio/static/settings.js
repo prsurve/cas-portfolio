@@ -27,7 +27,7 @@ function renderHealth(h) {
   const s = h.stored;
   document.getElementById("stored-counts").textContent =
     `${plural(s.statements, "statement")}, ${s.demat_rows} demat and ${s.fund_rows} mutual fund holding rows, ` +
-    `${plural(s.transactions, "transaction")}, ${plural(s.prices, "price")}, and ${s.audit_events === 1 ? "1 activity log entry" : `${s.audit_events} activity log entries`}.`;
+    `${plural(s.transactions, "transaction")}, ${plural(s.prices, "price")}, ${plural(s.snapshots, "saved snapshot")}, and ${s.audit_events === 1 ? "1 activity log entry" : `${s.audit_events} activity log entries`}.`;
   document.getElementById("stored-where").textContent = d.location ? `in the file ${d.location}, on this machine` : "in your database, on this machine";
 }
 
