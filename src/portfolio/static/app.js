@@ -451,6 +451,7 @@ async function load() {
     renderAllocation(portfolio);
     renderConcentration(portfolio);
     renderStress(portfolio);
+    renderReport(portfolio);
     loadDrift();  // not awaited: the targets failing must not break the page
     renderHoldings(portfolio);
     loadReturns();  // only does anything while the Performance page is showing
@@ -489,6 +490,7 @@ initSettings();
 window.Nav.init((page, arg, moveFocus) => {
   redrawSized();
   if (page === "settings") loadSettings();
+  if (page === "reports") loadSnapshots();
   if (page === "performance") loadReturns();
   if (page === "holdings") showHoldings(arg, moveFocus);
   else currentHoldingKey = null;  // so a reload while on another page does not fetch a detail nobody is looking at

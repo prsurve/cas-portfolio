@@ -18,6 +18,7 @@
         <li><a href="#/holdings" data-nav="holdings">Holdings</a></li>
         <li><a href="#/performance" data-nav="performance">Performance</a></li>
         <li><a href="#/imports" data-nav="imports">Imports</a></li>
+        <li><a href="#/reports" data-nav="reports">Reports</a></li>
         <li><a href="#/settings" data-nav="settings">Settings</a></li>
       </ul>
     </nav>
@@ -377,6 +378,43 @@
       </section>
     </div>
 
+    <div class="page" id="page-reports" data-page="reports" hidden>
+      <h1 id="reports-title" tabindex="-1">Reports</h1>
+
+      <section aria-labelledby="report-h" id="report-section">
+        <h2 id="report-h">Current report</h2>
+        <p class="subtle noprint">
+          A one-page summary of what your statements show. Use your browser's print dialog to print it or save it as a PDF.
+          Nothing is sent anywhere.
+        </p>
+        <p class="noprint"><button type="button" id="report-print">Print or save as PDF</button></p>
+        <div id="report-body" class="card report"></div>
+      </section>
+
+      <section aria-labelledby="snap-h" id="snap-section" class="noprint">
+        <h2 id="snap-h">Saved snapshots</h2>
+        <p class="subtle">
+          A snapshot keeps the figures as they are now, so you can compare them with your portfolio later.
+          It is stored in this app's database with your statements, so it is included in exports and backups
+          and removed by "delete all data".
+        </p>
+        <form id="snap-form" class="toolbar">
+          <label>Note (optional) <input type="text" id="snap-note" maxlength="80" autocomplete="off"></label>
+          <button type="submit" id="snap-save">Save snapshot</button>
+        </form>
+        <p id="snap-message" class="subtle" role="status"></p>
+        <div class="table-wrap">
+          <table id="snapshots" class="cards">
+            <thead>
+              <tr><th scope="col">Saved</th><th scope="col">Note</th><th scope="col">Statement dates</th><th scope="col" class="num">Total</th><th scope="col"><span class="sr-only">Actions</span></th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div id="snap-compare" class="card" tabindex="-1" hidden></div>
+      </section>
+    </div>
+
     <div class="page" id="page-settings" data-page="settings" hidden>
       <h1 id="settings-title" tabindex="-1">Settings</h1>
 
@@ -472,6 +510,7 @@
   <script src="/static/settings.js"></script>
   <script src="/static/stress.js"></script>
   <script src="/static/drift.js"></script>
+  <script src="/static/reports.js"></script>
   <script src="/static/app.js"></script>
   <script src="/static/help.js"></script>
 </body>

@@ -227,7 +227,7 @@ Common acceptance for every item: tests added with synthetic data, `privacy_chec
 
 **F-17 Investment timeline.** *Status: New.* Chronological list of statement imports, MF transactions, and detected changes. Dividends and corporate actions are not in CAS data reliably, so scope to what exists. Effort M. Depends: F-09, F-11.
 
-**F-18 Export center and report snapshots.** *Status: Partial (JSON export, table CSVs).* A Reports page: CSV per table with a header block (as-of, source, completeness note), printable HTML report (browser "Save as PDF"; no PDF library), and saved dated snapshots (`report_snapshots` table holding the computed view JSON) for later comparison. Effort L. DB: new table plus `_migrate()` and schema test. Risk: snapshots contain real figures, so they are in the DB and covered by export/delete-all/backup. Depends: F-07.
+**F-18 Export center and report snapshots.** *Status: Done (Reports page: printable report and saved snapshots; per-table CSV stays on Holdings)* A Reports page: CSV per table with a header block (as-of, source, completeness note), printable HTML report (browser "Save as PDF"; no PDF library), and saved dated snapshots (`report_snapshots` table holding the computed view JSON) for later comparison. Effort L. DB: new table plus `_migrate()` and schema test. Risk: snapshots contain real figures, so they are in the DB and covered by export/delete-all/backup. Depends: F-07.
 
 **F-19 Tax-lot explorer (B9).** *Status: New.* FIFO lots per fund from `mf_transactions` where history is complete; holding period and short/long-term flags for the user to check, not tax advice; equity lots only if a tradebook CSV is imported (old item 4). Effort XL. Depends: F-11, F-23.
 
