@@ -167,4 +167,7 @@ assert.equal(T.toCsv(cols, []), 'Name,Qty,"Note, x"\r\n', "headers even when the
   assert.equal(throwing.get("x", 3), 3); throwing.set("x", 1);
 }
 
+// ---- glossary ---------------------------------------------------------------------
+for (const [k, v] of Object.entries(T.GLOSSARY)) assert.ok(typeof v === "string" && v.length > 20 && v.length < 400, `glossary ${k} is a short sentence`);
+
 console.log("ok");

@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 
 STATIC = Path(__file__).resolve().parent.parent / "src" / "portfolio" / "static"
-JS = [STATIC / "app.js", STATIC / "tools.js", STATIC / "nav.js", STATIC / "holdings.js", STATIC / "imports.js", STATIC / "settings.js", STATIC / "theme.js", STATIC / "returns.js", STATIC / "confidence.js"]
+JS = [STATIC / "app.js", STATIC / "tools.js", STATIC / "nav.js", STATIC / "holdings.js", STATIC / "imports.js", STATIC / "settings.js", STATIC / "theme.js", STATIC / "returns.js", STATIC / "confidence.js", STATIC / "help.js"]
 
 # Validated with the dataviz skill's scripts/validate_palette.js against this app's card surfaces
 # (adjacent pairs, light #ffffff and dark #1f1f1d). Change a hex and the check must be run again.
@@ -308,3 +308,22 @@ def test_headings_that_receive_focus_do_not_show_a_ring():
     css = (STATIC / "app.css").read_text()
     assert re.search(r'h1\[tabindex="-1"\]:focus[^{]*\{\s*outline:\s*none', css)
     assert "[tabindex]:focus-visible" in css, "other focusable things keep their ring"
+
+
+def test_help_terms_all_have_a_definition_and_a_heading():
+    """Every data-help in the page names a glossary entry, and help.js is loaded after the headings exist."""
+    html = (STATIC / "index.html").read_text()
+    tools = (STATIC / "tools.js").read_text()
+    glossary = re.search(r"const GLOSSARY = \{(.*?)\n  \};", tools, re.S).group(1)
+    keys = set(re.findall(r"^    (\w+):", glossary, re.M))
+    used = re.findall(r'<h2 [^>]*data-help="(\w+)"', html)
+    assert used and set(used) <= keys, f"data-help without a glossary entry: {set(used) - keys}"
+    assert html.index("/static/app.js") < html.index("/static/help.js")
+    assert "innerHTML" not in (STATIC / "help.js").read_text()
+
+
+def test_every_money_tile_carries_a_date():
+    """F-03: the invested, gain and change tiles say which date they are as of, like the value tiles do."""
+    js = (STATIC / "app.js").read_text()
+    for label in ('tile("Mutual funds invested", money(t.mf_cost), mfDate)', "latest price as of ${day(m.as_of)}", "${pct(t.mf_gain_pct)}, ${mfDate}", "concAsOf"):
+        assert label in js, f"missing date on a figure: {label}"

@@ -91,6 +91,7 @@ function renderTotals(p) {
   const tile = tileEl;
   const a = p.as_of;
   const range = !a ? null : a.from === a.to ? `as of ${day(a.to)}` : `${day(a.from)} to ${day(a.to)}`;
+  const mfDate = p.statements.mf ? `as of ${day(p.statements.mf.period_to)}` : null;
   const tiles = [tile("Total value", money(t.value), range)];
   if (p.statements.demat) {
     tiles.push(tile("Demat holdings", money(t.demat_value), `as of ${day(p.statements.demat.period_to)}`));
@@ -98,14 +99,14 @@ function renderTotals(p) {
   if (p.statements.mf) {
     tiles.push(tile("Mutual fund folios", money(t.mf_value), `as of ${day(p.statements.mf.period_to)}`));
     if (t.mf_cost !== null) {
-      tiles.push(tile("Mutual funds invested", money(t.mf_cost)));
-      tiles.push(tile("Mutual fund gain", money(t.mf_gain), pct(t.mf_gain_pct), signClass(t.mf_gain)));
+      tiles.push(tile("Mutual funds invested", money(t.mf_cost), mfDate));
+      tiles.push(tile("Mutual fund gain", money(t.mf_gain), `${pct(t.mf_gain_pct)}, ${mfDate}`, signClass(t.mf_gain)));
     }
   }
   for (const [label, m] of [["Demat", t.demat_latest], ["Funds", t.mf_latest]]) {
     if (!m) continue;
     tiles.push(tile(`${label} at latest price`, money(m.value), `${m.priced} of ${m.total}, as of ${day(m.as_of)}`));
-    tiles.push(tile(`${label}: change since statement`, money(m.change), pct(m.change_pct), signClass(m.change)));
+    tiles.push(tile(`${label}: change since statement`, money(m.change), `${pct(m.change_pct)}, latest price as of ${day(m.as_of)}`, signClass(m.change)));
   }
   document.getElementById("totals").replaceChildren(...tiles);
 }
@@ -324,8 +325,11 @@ function renderConcentration(p) {
   section.hidden = !c || c.positions < 3;  // with one or two positions there is nothing to be concentrated
   if (section.hidden) return;
   const pc = (n) => `${n.toFixed(1)}%`;
+  const a = p.as_of;
+  const concAsOf = !a ? "" : a.from === a.to ? ` as of ${day(a.to)}` : ` as of ${day(a.from)} to ${day(a.to)}`;
   document.getElementById("conc-note").textContent =
-    "Worked out from statement values. A position is one ISIN, and a mutual fund or ETF counts as one position " +
+    `Worked out from statement values${concAsOf}. ` +
+    "A position is one ISIN, and a mutual fund or ETF counts as one position " +
     "whatever it holds inside. Effective holdings means your money behaves as if it were spread evenly over that " +
     "many positions: the lower it is compared with the real count, the more you rely on a few of them. " +
     "Only single positions are flagged. A fund house is not a single point of failure the way a company is, " +
@@ -465,3 +469,5 @@ window.Nav.init((page, arg, moveFocus) => {
   else currentHoldingKey = null;  // so a reload while on another page does not fetch a detail nobody is looking at
 });
 load();
+// A visible label whenever the page shows the made-up demo portfolio. If the call fails the banner stays hidden.
+fetch("/api/mode").then((r) => r.json()).then((m) => { document.getElementById("demo-banner").hidden = !m.demo; }).catch(() => {});

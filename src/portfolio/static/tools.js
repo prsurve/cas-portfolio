@@ -169,7 +169,19 @@
     };
   }
 
-  const api = { matchesQuery, sortRows, csvCell, toCsv, debounce, fmt, parseRoute, cleanView, cleanViews, cleanViewName, addView, removeView, createPrefs, MAX_VIEWS };
+  // Short definitions shown next to a heading (help.js). One place, so the wording is the same everywhere.
+  const GLOSSARY = {
+    sources: "Each figure comes from the statement you uploaded, as of that statement's date. Latest prices from AMFI, NSE and BSE are shown beside them and are never added into the statement total.",
+    previous: "The two newest statement dates compared. Each change is split into buying or selling (quantity) and price moves, which add up to the change in value.",
+    quality: "What the app could not read or could not check, and which figures it affects. A gap means rows were not recognised, not that the statement is wrong.",
+    allocation: "Share of the statement total by asset class. Values are as of each statement's date, so stocks and funds may be from different days.",
+    concentration: "How much of the total sits in one position or issuer. Funds are not looked through to the shares inside them.",
+    returns: "XIRR is the yearly rate at which the money put in, the money taken out and the statement value balance. It covers only the history the statement shows, so it is not a fund's published return, and a fund with incomplete history is skipped, not estimated.",
+    history: "Total value held at each statement date. It rises with new money as well as growth, so it is not a return.",
+    changes: "Compares two statement dates. Quantity effect plus price effect equals the change in value.",
+  };
+
+  const api = { GLOSSARY, matchesQuery, sortRows, csvCell, toCsv, debounce, fmt, parseRoute, cleanView, cleanViews, cleanViewName, addView, removeView, createPrefs, MAX_VIEWS };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.PortfolioTools = api;
 })(typeof self !== "undefined" ? self : this);

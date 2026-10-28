@@ -23,6 +23,7 @@
     </nav>
 
     <main id="main" tabindex="-1">
+      <p id="demo-banner" class="demo-banner" role="status" hidden><strong>Demo.</strong> This is a made-up portfolio in a temporary database. Nothing here is yours, and it disappears when the server stops. Restart without <code>PORTFOLIO_DEMO</code> to use your own data.</p>
       <div id="alerts" role="status" aria-live="polite"></div>
       <p id="loading" class="subtle" role="status">Loading your portfolio…</p>
 
@@ -57,12 +58,12 @@
       </section>
 
       <section aria-labelledby="fresh-h" id="fresh-section" hidden>
-        <h2 id="fresh-h">Where the data comes from</h2>
+        <h2 id="fresh-h" data-help="sources">Where the data comes from</h2>
         <div class="card"><ul id="freshness" class="checks"></ul></div>
       </section>
 
       <section aria-labelledby="prev-h" id="prev-section" hidden>
-        <h2 id="prev-h">Since the previous statement</h2>
+        <h2 id="prev-h" data-help="previous">Since the previous statement</h2>
         <div class="card">
           <p id="prev-summary" class="subtle"></p>
           <ul id="prev-list" class="movers"></ul>
@@ -71,7 +72,7 @@
       </section>
 
       <section aria-labelledby="complete-h" id="complete-section" hidden>
-        <h2 id="complete-h">Data quality</h2>
+        <h2 id="complete-h" data-help="quality">Data quality</h2>
         <div class="card">
           <p id="completeness-summary" class="quality-head"></p>
           <ul id="completeness" class="checks"></ul>
@@ -92,11 +93,11 @@
       </section>
 
       <section aria-labelledby="alloc-h" id="alloc-section" hidden>
-        <h2 id="alloc-h">Allocation</h2>
+        <h2 id="alloc-h" data-help="allocation">Allocation</h2>
         <div id="allocation" class="alloc-grid"></div>
       </section>
       <section aria-labelledby="conc-h" id="conc-section" hidden>
-        <h2 id="conc-h">Concentration</h2>
+        <h2 id="conc-h" data-help="concentration">Concentration</h2>
         <p class="subtle" id="conc-note"></p>
         <div id="conc-tiles" class="tiles"></div>
         <div class="card"><ul id="conc-checks" class="checks"></ul></div>
@@ -169,7 +170,7 @@
     <div class="page" id="page-performance" data-page="performance" hidden>
       <h1 id="performance-title" tabindex="-1">Performance</h1>
       <section aria-labelledby="history-h" id="history-section" hidden>
-        <h2 id="history-h">Value at each statement</h2>
+        <h2 id="history-h" data-help="history">Value at each statement</h2>
         <p class="subtle">
           What you held on each statement date. It rises when you add money as well as when prices rise,
           so it is not your return. A hollow point means its stocks and funds come from statements more
@@ -194,7 +195,7 @@
         </div>
       </section>
       <section aria-labelledby="returns-h" id="returns-section" hidden>
-        <h2 id="returns-h">Returns on mutual funds (XIRR)</h2>
+        <h2 id="returns-h" data-help="returns">Returns on mutual funds (XIRR)</h2>
         <p class="subtle">
           The yearly rate at which the money you put in, the money you took out and the statement value balance. It counts
           only the history on your CAMS or KFintech statement, and only funds whose transactions cover the whole holding and
@@ -222,7 +223,7 @@
       </section>
 
       <section aria-labelledby="changes-h" id="changes-section" hidden>
-        <h2 id="changes-h">What changed between statements</h2>
+        <h2 id="changes-h" data-help="changes">What changed between statements</h2>
         <p class="subtle">
           Compares your holdings on two statement dates. Each change in value is split into what came from
           holding more or less (bought or sold) and what came from price moves. This is worked out from
@@ -421,5 +422,6 @@
   <script src="/static/returns.js"></script>
   <script src="/static/settings.js"></script>
   <script src="/static/app.js"></script>
+  <script src="/static/help.js"></script>
 </body>
 </html>

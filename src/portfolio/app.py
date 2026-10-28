@@ -49,6 +49,9 @@ def create_app(settings: Settings | None = None, store: Store | None = None,
                nav_fetcher: Callable[[], str] | None = None,
                exchange_fetcher: Callable[[str], Any] | None = None) -> FastAPI:
     settings = settings or get_settings()
+    if settings.demo and store is None:
+        from portfolio.demo import demo_settings
+        settings, store = demo_settings(settings)
     if store is None:
         if settings.database_url.startswith("sqlite:///./"):
             Path(settings.database_url.removeprefix("sqlite:///")).parent.mkdir(parents=True, exist_ok=True)
@@ -146,6 +149,11 @@ def create_app(settings: Settings | None = None, store: Store | None = None,
             raise HTTPException(404, "Statement not found")
         store.audit("statement_deleted", f"#{statement_id}")
         return {"status": "deleted"}
+
+    @app.get("/api/mode")
+    def mode() -> dict[str, bool]:
+        """Whether the page is showing the made-up demo portfolio."""
+        return {"demo": settings.demo}
 
     @app.get("/api/health")
     def health() -> dict[str, Any]:

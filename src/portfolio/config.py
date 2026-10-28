@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     backup_keep: int = 14
     # A gpg public key (id, fingerprint or email). Set it and backups are encrypted to that key.
     backup_gpg_recipient: str | None = None
+    # Serve a made-up portfolio from a temporary database instead of your own data (see demo.py).
+    demo: bool = False
 
 
 @lru_cache
