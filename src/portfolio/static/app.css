@@ -193,23 +193,6 @@ th button.sort::after { content: " " attr(data-arrow); color: var(--accent); }
   .toolbar input[type="search"] { min-width: 0; width: 100%; }
   .toolbar label:has(input[type="search"]) { flex: 1 1 100%; }
 
-  table.cards, table.cards tbody, table.cards tr, table.cards td { display: block; }
-  table.cards thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-  table.cards tr { padding: 10px 12px; border-bottom: 1px solid var(--border); }
-  table.cards tr:last-child { border-bottom: 0; }
-  table.cards tr[hidden] { display: none; }
-  table.cards td { padding: 2px 0; border: 0; white-space: normal; text-align: right; }
-  table.cards td:empty { display: none; }
-  table.cards td:first-child { text-align: left; padding-bottom: 6px; }
-  table.cards td[data-label] { display: grid; grid-template-columns: minmax(7em, auto) 1fr; column-gap: 12px; align-items: baseline; }
-  table.cards td[data-label]::before { content: attr(data-label); grid-column: 1; grid-row: 1; text-align: left; color: var(--muted); font-size: 0.78rem; }
-  table.cards td[data-label] > * { grid-column: 2; }
-  table.cards td.empty { text-align: center; }
-  table.cards tr.lot { background: var(--bg); padding-left: 22px; }
-  table.cards tr.lot td:first-child { color: var(--muted); font-size: 0.8rem; padding-bottom: 2px; }
-  table.cards tbody tr.holding[aria-expanded] td:first-child { position: relative; padding-right: 22px; }
-  table.cards tbody tr.holding[aria-expanded] td:first-child::after { content: "▾"; position: absolute; right: 2px; top: 0; color: var(--muted); }
-  table.cards tbody tr.holding[aria-expanded="false"] td:first-child::after { content: "▸"; }
 }
 
 /* First-run steps and the retry button on a load error. */
@@ -332,6 +315,27 @@ h1[tabindex="-1"]:focus, h2[tabindex="-1"]:focus, main:focus { outline: none; }
 /* The comparison table has seven columns: let names and headings wrap so it fits beside the sidebar. */
 #changes th { white-space: normal; vertical-align: bottom; }
 #changes td:first-child { white-space: normal; min-width: 170px; max-width: 280px; }
+
+/* Tables marked class="cards" become one card per row on phones and on tablets, where the sidebar leaves too little width. */
+@media (max-width: 900px) {
+  table.cards, table.cards tbody, table.cards tr, table.cards td { display: block; }
+  table.cards thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  table.cards tr { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  table.cards tr:last-child { border-bottom: 0; }
+  table.cards tr[hidden] { display: none; }
+  table.cards td { padding: 2px 0; border: 0; white-space: normal; text-align: right; }
+  table.cards td:empty { display: none; }
+  table.cards td:first-child { text-align: left; padding-bottom: 6px; }
+  table.cards td[data-label] { display: grid; grid-template-columns: minmax(7em, auto) 1fr; column-gap: 12px; align-items: baseline; }
+  table.cards td[data-label]::before { content: attr(data-label); grid-column: 1; grid-row: 1; text-align: left; color: var(--muted); font-size: 0.78rem; }
+  table.cards td[data-label] > * { grid-column: 2; }
+  table.cards td.empty { text-align: center; }
+  table.cards tr.lot { background: var(--bg); padding-left: 22px; }
+  table.cards tr.lot td:first-child { color: var(--muted); font-size: 0.8rem; padding-bottom: 2px; }
+  table.cards tbody tr.holding[aria-expanded] td:first-child { position: relative; padding-right: 22px; }
+  table.cards tbody tr.holding[aria-expanded] td:first-child::after { content: "▾"; position: absolute; right: 2px; top: 0; color: var(--muted); }
+  table.cards tbody tr.holding[aria-expanded="false"] td:first-child::after { content: "▸"; }
+}
 
 /* Contextual help: a small "?" beside a heading opens a short definition. */
 .help-btn { margin-left: var(--space-2); min-width: 24px; min-height: 24px; padding: 0 6px; border-radius: 50%; font-size: 0.8rem; line-height: 1; vertical-align: middle; color: var(--muted); }
