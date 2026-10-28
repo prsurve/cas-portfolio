@@ -327,3 +327,10 @@ def test_every_money_tile_carries_a_date():
     js = (STATIC / "app.js").read_text()
     for label in ('tile("Mutual funds invested", money(t.mf_cost), mfDate)', "latest price as of ${day(m.as_of)}", "${pct(t.mf_gain_pct)}, ${mfDate}", "concAsOf"):
         assert label in js, f"missing date on a figure: {label}"
+
+
+def test_history_by_class_table_labels_every_value_cell():
+    """The by-asset-class table is built in JS, so the card layout's data-label has to be set there."""
+    js = (STATIC / "app.js").read_text()
+    body = js[js.index("function renderHistoryClasses"):js.index("function renderHistory(")]
+    assert body.count('"data-label": l') == 2

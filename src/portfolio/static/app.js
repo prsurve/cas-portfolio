@@ -113,10 +113,33 @@ function renderTotals(p) {
 
 let lastHistory = null;
 
+// Statement value of each asset class on each statement date, and the change from the first date to the last.
+// Like the chart, this is value held: new money raises it as well as growth.
+function renderHistoryClasses(points) {
+  const labels = [...new Set(points.flatMap((pt) => (pt.by_class || []).map((c) => c.label)))];
+  const valueOf = (pt, label) => (pt.by_class || []).find((c) => c.label === label)?.value ?? 0;
+  const first = points[0], last = points[points.length - 1];
+  const rows = points.map((pt) => el("tr", null,
+    el("td", null, day(pt.date)),
+    labels.map((l) => el("td", { class: "num", "data-label": l }, money(valueOf(pt, l))))));
+  rows.push(el("tr", { class: "total" },
+    el("td", null, `Change, ${day(first.date)} to ${day(last.date)}`),
+    labels.map((l) => {
+      const change = valueOf(last, l) - valueOf(first, l);
+      return el("td", { class: `num ${signClass(change)}`, "data-label": l }, money(change));
+    })));
+  document.getElementById("history-classes").replaceChildren(
+    el("table", { class: "cards", id: "history-classes-table" },
+      el("thead", null, el("tr", null, el("th", { scope: "col" }, "Statement date"),
+        labels.map((l) => el("th", { scope: "col", class: "num" }, l)))),
+      el("tbody", null, rows)));
+}
+
 function renderHistory(points) {
   document.getElementById("history-section").hidden = points.length < 2;  // one point is not a trend
   if (points.length < 2) return;
   lastHistory = points;
+  renderHistoryClasses(points);
   // Drawn at the width it is shown at, so the axis text keeps its size on a phone instead of shrinking with the picture.
   const W = Math.max(300, Math.min(720, document.getElementById("history-chart").clientWidth || 720));
   const H = 240, L = 78, R = 16, T = 16, B = 30;

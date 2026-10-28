@@ -60,6 +60,8 @@ def test_history_has_one_point_per_statement_date_and_never_double_counts(store,
     first, second = points
     # 30 Sep: stocks from the demat statement; funds from CAMS (wins the tie), never CAMS + folios.
     assert first["value"] == sep["demat_value"] + 18840 and first["mf_value"] == 18840
+    for point in points:  # the asset-class split adds up to the total, so no class is double counted
+        assert round(sum(c["value"] for c in point["by_class"]), 2) == round(point["value"], 2)
     assert first["mf_source"] == "CAMS" and first["mixed"] is False
     # 31 Oct: the newer demat statement supplies its own folios (5000); CAMS is not added.
     assert second["mf_source"] == "CDSL" and second["mf_value"] == 5000
