@@ -182,6 +182,27 @@ def needs_upgrade(path: Path) -> bool:
                for table in metadata.tables.values())
 
 
+class DatabaseTooNew(RuntimeError):
+    """The database file was written by a newer version of the app than this one."""
+
+
+def refuse_newer_schema(path: Path) -> None:
+    """Raise DatabaseTooNew if the SQLite file's schema version is above what this code knows.
+    Opening it anyway could misread or damage data (for example after rolling back the code)."""
+    if not path.is_file() or path.stat().st_size == 0:
+        return
+    con = sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True)
+    try:
+        found = con.execute("PRAGMA user_version").fetchone()[0]
+    finally:
+        con.close()
+    if found > SQLITE_SCHEMA_VERSION:
+        raise DatabaseTooNew(
+            f"This database uses schema version {found}, but this version of the app only understands up to "
+            f"{SQLITE_SCHEMA_VERSION}. Update the app, or restore a backup made by this version (see docs/UPGRADING.md). "
+            "The file was not changed.")
+
+
 class Store:
     def __init__(self, engine: Engine) -> None:
         self.engine = engine
@@ -195,6 +216,8 @@ class Store:
             kwargs["connect_args"] = {"check_same_thread": False}
         engine = create_engine(url, **kwargs)
         path = sqlite_file(engine)
+        if path:
+            refuse_newer_schema(path)
         if before_upgrade and path and needs_upgrade(path):
             before_upgrade(path)
         store = cls(engine)
