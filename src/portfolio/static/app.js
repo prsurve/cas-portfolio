@@ -451,6 +451,7 @@ async function load() {
     renderAllocation(portfolio);
     renderConcentration(portfolio);
     renderStress(portfolio);
+    loadDrift();  // not awaited: the targets failing must not break the page
     renderHoldings(portfolio);
     loadReturns();  // only does anything while the Performance page is showing
     if (currentHoldingKey !== null) showHoldings(currentHoldingKey, false);  // a reload may have changed it

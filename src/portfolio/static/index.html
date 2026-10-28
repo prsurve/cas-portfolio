@@ -196,6 +196,31 @@
           <div class="table-wrap" id="history-classes"></div>
         </div>
       </section>
+      <section aria-labelledby="drift-h" id="drift-section" hidden>
+        <h2 id="drift-h" data-help="drift">Target mix and drift</h2>
+        <p class="subtle">
+          Enter the share of your portfolio you are aiming for in each asset class (they must add up to 100%).
+          The table shows how far each class is from its target, as of the statement dates. It states a gap, not what to do about it.
+          Your targets are stored in this app's database, with your statements.
+        </p>
+        <div class="card">
+          <form id="drift-form" class="toolbar" novalidate>
+            <div id="drift-inputs" class="drift-inputs"></div>
+            <span id="drift-sum" role="status"></span>
+            <button type="submit" id="drift-save">Save targets</button>
+            <button type="button" id="drift-clear">Clear targets</button>
+          </form>
+          <p id="drift-message" class="subtle" role="status"></p>
+          <div class="table-wrap">
+            <table id="drift" class="cards">
+              <thead>
+                <tr><th scope="col">Asset class</th><th scope="col" class="num">Now</th><th scope="col" class="num">Target</th><th scope="col" class="num">Gap (points)</th><th scope="col" class="num">Gap in rupees</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
       <section aria-labelledby="stress-h" id="stress-section" hidden>
         <h2 id="stress-h" data-help="stress">What if prices fall? (a what-if, not a forecast)</h2>
         <p class="subtle">
@@ -446,6 +471,7 @@
   <script src="/static/returns.js"></script>
   <script src="/static/settings.js"></script>
   <script src="/static/stress.js"></script>
+  <script src="/static/drift.js"></script>
   <script src="/static/app.js"></script>
   <script src="/static/help.js"></script>
 </body>

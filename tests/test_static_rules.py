@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 
 STATIC = Path(__file__).resolve().parent.parent / "src" / "portfolio" / "static"
-JS = [STATIC / "app.js", STATIC / "tools.js", STATIC / "nav.js", STATIC / "holdings.js", STATIC / "imports.js", STATIC / "settings.js", STATIC / "theme.js", STATIC / "returns.js", STATIC / "confidence.js", STATIC / "help.js", STATIC / "stress.js"]
+JS = [STATIC / "app.js", STATIC / "tools.js", STATIC / "nav.js", STATIC / "holdings.js", STATIC / "imports.js", STATIC / "settings.js", STATIC / "theme.js", STATIC / "returns.js", STATIC / "confidence.js", STATIC / "help.js", STATIC / "stress.js", STATIC / "drift.js"]
 
 # Validated with the dataviz skill's scripts/validate_palette.js against this app's card surfaces
 # (adjacent pairs, light #ffffff and dark #1f1f1d). Change a hex and the check must be run again.
@@ -70,7 +70,7 @@ def test_every_table_column_has_a_phone_label():
     js = "".join(p.read_text() for p in JS)
     assert "@media (max-width: 640px)" in (STATIC / "app.css").read_text()
     tables = re.findall(r'<table id="(\w+)" class="cards">(.*?)</table>', html, re.S)
-    assert {t[0] for t in tables} == {"history", "changes", "holdings", "statements", "audit", "backups", "returns", "figures", "stress"}
+    assert {t[0] for t in tables} == {"history", "changes", "holdings", "statements", "audit", "backups", "returns", "figures", "stress", "drift"}
     for table_id, body in tables:
         headings = re.findall(r"<th[^>]*>(.*?)</th>", body, re.S)
         for index, raw in enumerate(headings):

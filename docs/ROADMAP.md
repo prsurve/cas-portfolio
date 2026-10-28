@@ -233,7 +233,7 @@ Common acceptance for every item: tests added with synthetic data, `privacy_chec
 
 **F-20 Cash-flow-adjusted performance (B8).** *Status: New.* Money-weighted (XIRR) at portfolio level for funds with full history; time-weighted needs prices between flows, which statements do not give, so do not offer it. Effort L. Depends: F-11. Risk: mixing funds with and without full history gives a misleading number, so show coverage ("covers 62% of fund value").
 
-**F-21 Portfolio drift monitor (B7).** *Status: New.* User targets per asset class (table `targets`), deviations shown, no trade advice. Effort M. DB: new table. Depends: F-06.
+**F-21 Portfolio drift monitor (B7).** *Status: Done (`targets` table, `drift.py`, Performance page section)* User targets per asset class (table `targets`), deviations shown, no trade advice. Effort M. DB: new table. Depends: F-06.
 
 **F-22 Stress test (B5).** *Status: Done (Performance page, `stressTest` in `tools.js`)* Client-side calculation on the loaded view: shocks per asset class or holding, results labelled "assumption, not a prediction". Effort S-M. No DB. Depends: F-07.
 

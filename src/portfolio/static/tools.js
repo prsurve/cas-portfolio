@@ -193,6 +193,7 @@
     returns: "XIRR is the yearly rate at which the money put in, the money taken out and the statement value balance. It covers only the history the statement shows, so it is not a fund's published return, and a fund with incomplete history is skipped, not estimated.",
     history: "Total value held at each statement date. It rises with new money as well as growth, so it is not a return.",
     stress: "A what-if, not a forecast: it applies the percentage you type to each asset class's statement value and adds up the result. It ignores what a class holds inside it (a mutual fund may be part debt), prices since the statement, and tax.",
+    drift: "Drift is the gap between the share of your portfolio an asset class has now and the share you aimed for. A positive gap is above target. It uses statement values, so it is as old as the statements.",
     changes: "Compares two statement dates. Quantity effect plus price effect equals the change in value.",
   };
 
