@@ -427,6 +427,7 @@ async function load() {
     setupChanges(history.points);
     renderAllocation(portfolio);
     renderConcentration(portfolio);
+    renderStress(portfolio);
     renderHoldings(portfolio);
     loadReturns();  // only does anything while the Performance page is showing
     if (currentHoldingKey !== null) showHoldings(currentHoldingKey, false);  // a reload may have changed it

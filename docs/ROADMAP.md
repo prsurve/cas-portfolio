@@ -235,7 +235,7 @@ Common acceptance for every item: tests added with synthetic data, `privacy_chec
 
 **F-21 Portfolio drift monitor (B7).** *Status: New.* User targets per asset class (table `targets`), deviations shown, no trade advice. Effort M. DB: new table. Depends: F-06.
 
-**F-22 Stress test (B5).** *Status: New.* Client-side calculation on the loaded view: shocks per asset class or holding, results labelled "assumption, not a prediction". Effort S-M. No DB. Depends: F-07.
+**F-22 Stress test (B5).** *Status: Done (Performance page, `stressTest` in `tools.js`)* Client-side calculation on the loaded view: shocks per asset class or holding, results labelled "assumption, not a prediction". Effort S-M. No DB. Depends: F-07.
 
 **F-23 Stock cost from tradebook CSV (old item 4).** *Status: Planned.* Import broker holdings/tradebook CSV (user export), map to ISINs, store average cost per demat holding with source. Needs a mapping UI per broker format and strict validation. Effort XL. Risk: wrong matching; show unmatched rows, never guess.
 

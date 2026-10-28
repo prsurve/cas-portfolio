@@ -169,6 +169,20 @@
     };
   }
 
+  // What-if: apply a percentage change to each asset class. Pure arithmetic on statement values, not a forecast.
+  // classes: [{label, value}]; shocks: {label: percent}. A missing, blank or non-numeric shock counts as 0.
+  function stressTest(classes, shocks) {
+    const num = (x) => (typeof x === "number" && Number.isFinite(x) ? x : 0);
+    const rows = classes.map((c) => {
+      const shock = Math.max(-100, num(shocks[c.label]));  // a holding cannot lose more than all of its value
+      const after = c.value * (1 + shock / 100);
+      return { label: c.label, value: c.value, shock, after, change: after - c.value };
+    });
+    const total = rows.reduce((a, r) => a + r.value, 0);
+    const after = rows.reduce((a, r) => a + r.after, 0);
+    return { rows, total, after, change: after - total, changePct: total ? ((after - total) / total) * 100 : null };
+  }
+
   // Short definitions shown next to a heading (help.js). One place, so the wording is the same everywhere.
   const GLOSSARY = {
     sources: "Each figure comes from the statement you uploaded, as of that statement's date. Latest prices from AMFI, NSE and BSE are shown beside them and are never added into the statement total.",
@@ -178,10 +192,11 @@
     concentration: "How much of the total sits in one position or issuer. Funds are not looked through to the shares inside them.",
     returns: "XIRR is the yearly rate at which the money put in, the money taken out and the statement value balance. It covers only the history the statement shows, so it is not a fund's published return, and a fund with incomplete history is skipped, not estimated.",
     history: "Total value held at each statement date. It rises with new money as well as growth, so it is not a return.",
+    stress: "A what-if, not a forecast: it applies the percentage you type to each asset class's statement value and adds up the result. It ignores what a class holds inside it (a mutual fund may be part debt), prices since the statement, and tax.",
     changes: "Compares two statement dates. Quantity effect plus price effect equals the change in value.",
   };
 
-  const api = { GLOSSARY, matchesQuery, sortRows, csvCell, toCsv, debounce, fmt, parseRoute, cleanView, cleanViews, cleanViewName, addView, removeView, createPrefs, MAX_VIEWS };
+  const api = { stressTest, GLOSSARY, matchesQuery, sortRows, csvCell, toCsv, debounce, fmt, parseRoute, cleanView, cleanViews, cleanViewName, addView, removeView, createPrefs, MAX_VIEWS };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.PortfolioTools = api;
 })(typeof self !== "undefined" ? self : this);

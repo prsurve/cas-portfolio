@@ -194,6 +194,28 @@
           </div>
         </div>
       </section>
+      <section aria-labelledby="stress-h" id="stress-section" hidden>
+        <h2 id="stress-h" data-help="stress">What if prices fall? (a what-if, not a forecast)</h2>
+        <p class="subtle">
+          Type a percentage for each asset class. The result is simple arithmetic on your statement values, as shown
+          below. It is an assumption you choose, not a prediction.
+        </p>
+        <div class="card">
+          <div class="toolbar">
+            <button type="button" id="stress-preset">Everything falls 20%</button>
+            <button type="button" id="stress-reset">Reset</button>
+          </div>
+          <div class="table-wrap">
+            <table id="stress" class="cards">
+              <thead>
+                <tr><th scope="col">Asset class</th><th scope="col" class="num">Now</th><th scope="col" class="num">Change in price (%)</th><th scope="col" class="num">After</th><th scope="col" class="num">Difference</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <p id="stress-summary" class="subtle" role="status"></p>
+        </div>
+      </section>
       <section aria-labelledby="returns-h" id="returns-section" hidden>
         <h2 id="returns-h" data-help="returns">Returns on mutual funds (XIRR)</h2>
         <p class="subtle">
@@ -421,6 +443,7 @@
   <script src="/static/confidence.js"></script>
   <script src="/static/returns.js"></script>
   <script src="/static/settings.js"></script>
+  <script src="/static/stress.js"></script>
   <script src="/static/app.js"></script>
   <script src="/static/help.js"></script>
 </body>
