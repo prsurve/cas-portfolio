@@ -8,6 +8,7 @@ Run (bind to localhost; expose only through Cloudflare Tunnel + Access):
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, Callable
 
@@ -20,6 +21,7 @@ from portfolio.config import Settings, get_settings
 from portfolio.importers.cas import PARSER_VERSION, CasImportError, parse_pdf_bytes, save, sha256, summary
 from portfolio.backup import BackupError, create_backup, newest_age_days, safety_backup
 from portfolio.changes import compare
+from portfolio.drift import InvalidTargets, clean_targets, compute_drift
 from portfolio.confidence import data_confidence
 from portfolio.confidence import data_confidence
 from portfolio.health import backup_list, system_health
@@ -27,7 +29,7 @@ from portfolio.history import value_history
 from portfolio.returns import compute_returns
 from portfolio.import_log import audit_events, statement_detail, statement_summary
 from portfolio.holdings import holding_detail
-from portfolio.portfolio_view import _jsonable, build_view, compute_view
+from portfolio.portfolio_view import ASSET_CLASS_LABELS, _jsonable, build_view, compute_view
 from portfolio.prices import PriceFetchError
 from portfolio.refresh import refresh_all
 from portfolio.store import Store, as_utc, sqlite_file
@@ -207,6 +209,32 @@ def create_app(settings: Settings | None = None, store: Store | None = None,
     @app.get("/api/portfolio")
     def portfolio() -> dict[str, Any]:
         return build_view(store, settings.stale_after_days, concentration_alert_pct=settings.concentration_alert_pct)
+
+    def targets_payload() -> dict[str, Any]:
+        view = compute_view(store, settings.stale_after_days)
+        targets = store.get_targets()
+        return _jsonable({"classes": list(ASSET_CLASS_LABELS), "targets": targets,
+                          "drift": compute_drift(view["allocation"]["asset_class"], Decimal(str(view["totals"]["value"])), targets)})
+
+    @app.get("/api/targets")
+    def get_targets() -> dict[str, Any]:
+        """The target mix and how far the current mix is from it."""
+        return targets_payload()
+
+    @app.put("/api/targets")
+    async def put_targets(request: Request) -> dict[str, Any]:
+        """Body: {"targets": {"Stocks": 60, ...}} adding up to 100. An empty object clears them."""
+        try:
+            body = await request.json()
+        except ValueError:
+            body = None
+        if not isinstance(body, dict):
+            raise HTTPException(400, "Send a JSON object with a targets field.")
+        try:
+            store.set_targets(clean_targets(body.get("targets")))
+        except InvalidTargets as exc:
+            raise HTTPException(400, str(exc)) from None
+        return targets_payload()
 
     @app.get("/api/confidence")
     def confidence() -> dict[str, Any]:

@@ -141,6 +141,13 @@ audit_log = Table(
     Column("detail", Text),
 )
 
+# The mix the user is aiming for, one row per asset class. Their own setting, not statement data.
+targets = Table(
+    "targets", metadata,
+    Column("asset_class", String(40), primary_key=True),
+    Column("pct", NUM, nullable=False),
+)
+
 CHILD_TABLES = (stock_holdings, mf_holdings, mf_transactions, statement_accounts)
 
 
@@ -424,11 +431,22 @@ class Store:
                 conn.execute(delete(table).where(table.c.statement_id == statement_id))
             return (conn.execute(delete(statements).where(statements.c.id == statement_id)).rowcount or 0) > 0
 
+    def get_targets(self) -> dict[str, Decimal]:
+        with self.engine.connect() as conn:
+            return {r["asset_class"]: Decimal(r["pct"]) for r in conn.execute(select(targets).order_by(targets.c.asset_class)).mappings()}
+
+    def set_targets(self, values: dict[str, Decimal]) -> None:
+        """Replace the whole target mix (an empty dict clears it)."""
+        with self.engine.begin() as conn:
+            conn.execute(delete(targets))
+            if values:
+                conn.execute(insert(targets), [{"asset_class": k, "pct": v} for k, v in values.items()])
+
     def export_all(self) -> dict[str, Any]:
         """Every table as JSON-safe rows (money as exact decimal strings). Only masked IDs are stored, so only they appear."""
         out: dict[str, Any] = {"exported_at": utcnow().isoformat(), "schema_version": self.schema_version()}
         with self.engine.connect() as conn:
-            for table in (statements, stock_holdings, mf_holdings, mf_transactions, statement_accounts, prices, audit_log):
+            for table in (statements, stock_holdings, mf_holdings, mf_transactions, statement_accounts, prices, targets, audit_log):
                 out[table.name] = [
                     {k: _export_value(v) for k, v in row.items()}
                     for row in conn.execute(select(table).order_by(*table.primary_key.columns)).mappings()
@@ -439,7 +457,7 @@ class Store:
         """Remove every statement, holding, transaction and price. The audit log stays, with one row recording this."""
         removed: dict[str, int] = {}
         with self.engine.begin() as conn:
-            for table in (*CHILD_TABLES, statements, prices):
+            for table in (*CHILD_TABLES, statements, prices, targets):
                 removed[table.name] = conn.execute(delete(table)).rowcount or 0
             conn.execute(insert(audit_log).values(ts=utcnow(), event="data_deleted", detail=f"{removed['statements']} statements"))
         return removed
