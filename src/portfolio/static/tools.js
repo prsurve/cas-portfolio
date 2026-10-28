@@ -194,6 +194,7 @@
     history: "Total value held at each statement date. It rises with new money as well as growth, so it is not a return.",
     stress: "A what-if, not a forecast: it applies the percentage you type to each asset class's statement value and adds up the result. It ignores what a class holds inside it (a mutual fund may be part debt), prices since the statement, and tax.",
     drift: "Drift is the gap between the share of your portfolio an asset class has now and the share you aimed for. A positive gap is above target. It uses statement values, so it is as old as the statements.",
+    timeline: "Only what your statements record: each statement's end date and the mutual fund transactions on CAMS or KFintech statements. A transaction printed on two overlapping statements is listed once.",
     changes: "Compares two statement dates. Quantity effect plus price effect equals the change in value.",
   };
 

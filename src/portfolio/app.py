@@ -30,6 +30,7 @@ from portfolio.history import value_history
 from portfolio.returns import compute_returns
 from portfolio.import_log import audit_events, statement_detail, statement_summary
 from portfolio.holdings import holding_detail
+from portfolio.timeline import build_timeline
 from portfolio.portfolio_view import ASSET_CLASS_LABELS, _jsonable, build_view, compute_view
 from portfolio.prices import PriceFetchError
 from portfolio.refresh import refresh_all
@@ -278,6 +279,11 @@ def create_app(settings: Settings | None = None, store: Store | None = None,
             raise HTTPException(404, "No such snapshot")
         store.audit("snapshot_deleted", str(snapshot_id))
         return {"deleted": True}
+
+    @app.get("/api/timeline")
+    def timeline(limit: int = 500) -> dict[str, Any]:
+        """Statement end dates and mutual fund transactions, newest first (what the statements record, nothing more)."""
+        return _jsonable(build_timeline(store, max(1, min(limit, 2000))))
 
     @app.get("/api/confidence")
     def confidence() -> dict[str, Any]:

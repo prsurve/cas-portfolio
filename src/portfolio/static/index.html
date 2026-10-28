@@ -244,6 +244,34 @@
           <p id="stress-summary" class="subtle" role="status"></p>
         </div>
       </section>
+      <section aria-labelledby="timeline-h" id="timeline-section" hidden>
+        <h2 id="timeline-h" data-help="timeline">Timeline</h2>
+        <p class="subtle">
+          Statement dates and the mutual fund transactions your CAMS or KFintech statements list, newest first.
+          Dividends and corporate actions on shares are not in these statements, so they do not appear here.
+        </p>
+        <div class="card">
+          <div class="toolbar">
+            <label>Show
+              <select id="timeline-filter">
+                <option value="all">Everything</option>
+                <option value="statement">Statements only</option>
+                <option value="transaction">Transactions only</option>
+              </select>
+            </label>
+            <span id="timeline-count" role="status"></span>
+          </div>
+          <div class="table-wrap">
+            <table id="timeline" class="cards">
+              <thead>
+                <tr><th scope="col">Date</th><th scope="col">Event</th><th scope="col">Detail</th><th scope="col" class="num">Amount</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <p><button type="button" id="timeline-more" hidden>Show more</button></p>
+        </div>
+      </section>
       <section aria-labelledby="returns-h" id="returns-section" hidden>
         <h2 id="returns-h" data-help="returns">Returns on mutual funds (XIRR)</h2>
         <p class="subtle">
@@ -511,6 +539,7 @@
   <script src="/static/stress.js"></script>
   <script src="/static/drift.js"></script>
   <script src="/static/reports.js"></script>
+  <script src="/static/timeline.js"></script>
   <script src="/static/app.js"></script>
   <script src="/static/help.js"></script>
 </body>

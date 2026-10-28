@@ -452,6 +452,7 @@ async function load() {
     renderConcentration(portfolio);
     renderStress(portfolio);
     renderReport(portfolio);
+    loadTimeline();  // not awaited: the timeline failing must not break the page
     loadDrift();  // not awaited: the targets failing must not break the page
     renderHoldings(portfolio);
     loadReturns();  // only does anything while the Performance page is showing
