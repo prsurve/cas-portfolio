@@ -207,12 +207,13 @@ def test_overview_has_its_panels_and_links_to_the_pages_behind_them():
     html = (STATIC / "index.html").read_text()
     start = html.index('id="page-overview"')
     overview = html[start:html.index('id="page-holdings"')]
-    for panel in ("totals", "prices-bar", "fresh-section", "prev-section", "complete-section", "alloc-section", "conc-section"):
+    for panel in ("totals", "prices-bar", "fresh-section", "prev-section", "complete-section", "alloc-section", "conc-section", "recent-section"):
         assert f'id="{panel}"' in overview, f"Overview lost its {panel} panel"
     for target in ("#/imports", "#/holdings", "#/performance"):
         assert f'href="{target}"' in overview, f"Overview has no link to {target}"
-    assert overview.index('id="totals"') < overview.index('id="fresh-section"') < overview.index('id="prev-section"') \
-        < overview.index('id="complete-section"') < overview.index('id="alloc-section"')
+    # headline first, then what needs attention, what changed, the mix, and where the data comes from last
+    order = ["totals", "prices-bar", "complete-section", "prev-section", "alloc-section", "conc-section", "recent-section", "fresh-section"]
+    assert [overview.index(f'id="{p}"') for p in order] == sorted(overview.index(f'id="{p}"') for p in order)
 
 
 def test_data_quality_shows_what_each_issue_affects_and_what_to_do():

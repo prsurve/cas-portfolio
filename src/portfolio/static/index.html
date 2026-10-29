@@ -55,20 +55,35 @@
         <div id="totals" class="tiles"></div>
       </section>
 
-      <section aria-label="Actions" id="prices-bar">
-        <div class="controls">
-          <a class="btn primary" href="#/imports">Upload a statement</a>
-          <a class="btn" href="#/holdings">View holdings</a>
-          <button type="button" class="btn" id="refresh-prices">Refresh prices</button>
-        </div>
+      <section aria-label="Actions" id="prices-bar" class="actions">
+        <button type="button" class="btn" id="refresh-prices">Refresh prices</button>
+        <a class="btn" href="#/holdings">View holdings</a>
         <p class="subtle" id="refresh-status" role="status" aria-live="polite">
           Refresh prices downloads public end-of-day files (AMFI fund NAVs, NSE and BSE closing prices). Nothing about your holdings is sent.
         </p>
       </section>
 
-      <section aria-labelledby="fresh-h" id="fresh-section" hidden>
-        <h2 id="fresh-h" data-help="sources">Where the data comes from</h2>
-        <div class="card"><ul id="freshness" class="checks"></ul></div>
+      <section aria-labelledby="complete-h" id="complete-section" hidden>
+        <h2 id="complete-h" data-help="quality">Data quality</h2>
+        <div class="card" id="quality-card">
+          <p id="completeness-summary" class="quality-head"></p>
+          <ul id="completeness" class="checks"></ul>
+          <details id="completeness-ok" hidden>
+            <summary id="completeness-ok-summary"></summary>
+            <ul id="completeness-passed" class="checks"></ul>
+          </details>
+          <details id="figures-details">
+            <summary>How far each figure can be trusted</summary>
+            <div class="table-wrap">
+              <table id="figures" class="cards">
+                <thead>
+                  <tr><th scope="col">Figure</th><th scope="col">How far to trust it</th><th scope="col">Based on</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </details>
+        </div>
       </section>
 
       <section aria-labelledby="prev-h" id="prev-section" hidden>
@@ -77,27 +92,6 @@
           <p id="prev-summary" class="subtle"></p>
           <ul id="prev-list" class="movers"></ul>
           <p><a href="#/performance">All changes and a different comparison</a></p>
-        </div>
-      </section>
-
-      <section aria-labelledby="complete-h" id="complete-section" hidden>
-        <h2 id="complete-h" data-help="quality">Data quality</h2>
-        <div class="card">
-          <p id="completeness-summary" class="quality-head"></p>
-          <ul id="completeness" class="checks"></ul>
-          <details id="completeness-ok" hidden>
-            <summary id="completeness-ok-summary"></summary>
-            <ul id="completeness-passed" class="checks"></ul>
-          </details>
-          <h3>What each figure rests on</h3>
-          <div class="table-wrap">
-            <table id="figures" class="cards">
-              <thead>
-                <tr><th scope="col">Figure</th><th scope="col">How far to trust it</th><th scope="col">Based on</th></tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
         </div>
       </section>
 
@@ -111,6 +105,17 @@
         <div id="conc-tiles" class="tiles"></div>
         <div class="card"><ul id="conc-checks" class="checks"></ul></div>
         <div id="conc-cards" class="alloc-grid conc-cards"></div>
+      </section>
+
+      <section aria-labelledby="recent-h" id="recent-section" hidden>
+        <h2 id="recent-h">Latest statements</h2>
+        <div class="card"><ul id="recent-list" class="movers"></ul>
+          <p><a href="#/imports">Add or manage statements</a></p></div>
+      </section>
+
+      <section aria-labelledby="fresh-h" id="fresh-section" hidden>
+        <h2 id="fresh-h" data-help="sources">Where the data comes from</h2>
+        <div class="card"><ul id="freshness" class="checks"></ul></div>
       </section>
     </div>
 

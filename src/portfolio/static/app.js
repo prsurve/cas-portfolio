@@ -389,6 +389,15 @@ function latestCell(l, column) {
     el("div", { class: l.stale ? "subtle loss" : "subtle" }, `${label} · ${day(l.price_date)}${l.stale ? " (old)" : ""}`));
 }
 
+// The newest statements, for the Overview: what was imported last and whether it reconciled.
+function renderRecentImports(list) {
+  const newest = [...list].sort((x, y) => (y.imported_at || "").localeCompare(x.imported_at || "")).slice(0, 3);
+  document.getElementById("recent-section").hidden = newest.length === 0;
+  document.getElementById("recent-list").replaceChildren(...newest.map((s) => el("li", null,
+    el("span", null, `${ISSUERS[s.issuer] || s.issuer} · ${s.kind === "mf" ? "Mutual funds" : "Stocks"} · to ${day(s.period_to)}`),
+    el("span", { class: "num" }, statementStatus(s)))));
+}
+
 async function refreshPrices() {
   const btn = document.getElementById("refresh-prices"), status = document.getElementById("refresh-status");
   btn.disabled = true;
@@ -460,6 +469,7 @@ async function load() {
     loadLots();
     if (currentHoldingKey !== null) showHoldings(currentHoldingKey, false);  // a reload may have changed it
     renderStatements(statements.statements);
+    renderRecentImports(statements.statements);
     loadAudit();  // not awaited: the activity list failing must not break the page
     showAlerts(collectAlerts(portfolio));
   } catch (err) {

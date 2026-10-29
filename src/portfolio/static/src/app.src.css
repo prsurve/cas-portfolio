@@ -257,10 +257,17 @@ main { min-width: 0; }
 #alerts { margin-bottom: var(--space-3); }
 
 /* Overview panels */
+/* Overview: the first tile is the headline number; the data-quality card carries a bar only when something needs attention. */
+#totals > .tile:first-child { grid-column: 1 / -1; }
+#totals > .tile:first-child .value { font-size: 2rem; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin-top: var(--space-3); }
+.actions .subtle { flex: 1 1 280px; margin: 0; }
+#quality-card.has-attention { border-left: 4px solid var(--warn); }
 .quality-head { margin: var(--space-3) 0 var(--space-1); font-weight: 600; }
-#completeness-ok { margin-top: var(--space-2); }
-#completeness-ok summary { cursor: pointer; color: var(--muted); font-size: 0.875rem; }
+#completeness-ok, #figures-details { margin-top: var(--space-2); }
+#completeness-ok summary, #figures-details summary { cursor: pointer; color: var(--muted); font-size: 0.875rem; }
 .movers { list-style: none; margin: 0 0 var(--space-3); padding: 0; }
+.movers { font-size: 0.9rem; }
 .movers li { display: flex; justify-content: space-between; gap: var(--space-3); padding: var(--space-2) 0; border-bottom: 1px solid var(--border); }
 .movers li:last-child { border-bottom: 0; }
 .movers .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
