@@ -222,14 +222,24 @@ th button.sort::after { content: " " attr(data-arrow); color: var(--accent); }
 .shell { display: grid; grid-template-columns: 176px minmax(0, 1fr); gap: var(--space-5); }
 main { min-width: 0; }
 .side { position: sticky; top: var(--space-4); align-self: start; }
-.brand { display: block; font-weight: 700; font-size: 1.25rem; padding: 0 var(--space-3) var(--space-4); }
+.brand { display: flex; align-items: center; gap: var(--space-2); font-weight: 700; font-size: 1.125rem; padding: 0 var(--space-3) var(--space-4); }
+.brand .icon { color: var(--accent); }
+.icon { width: 20px; height: 20px; flex: none; }
 .nav { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
-.nav a { display: block; padding: 10px var(--space-3); border-radius: var(--radius); border-left: 3px solid transparent;
+.nav-heading { padding: var(--space-4) var(--space-3) var(--space-1); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.nav-heading:first-child { padding-top: 0; }
+.nav a { display: flex; align-items: center; gap: 10px; padding: 9px var(--space-3); border-radius: var(--radius); border-left: 3px solid transparent;
   color: var(--muted); text-decoration: none; }
 .nav a:hover { color: var(--text); background: var(--surface); }
 .nav a[aria-current="page"] { color: var(--text); font-weight: 600; background: var(--surface); border-left-color: var(--accent); }
 .skip { position: absolute; left: -9999px; top: var(--space-2); }
 .skip:focus { left: var(--space-2); z-index: 20; background: var(--surface); padding: var(--space-2) var(--space-3); border-radius: var(--radius); }
+/* Header above every page: which date the numbers are from, and the actions that apply everywhere. */
+.topbar { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3);
+  padding: var(--space-2) 0 var(--space-3); margin-bottom: var(--space-2); background: var(--bg); border-bottom: 1px solid var(--border); }
+.topbar .asof { margin: 0 auto 0 0; font-size: 0.8125rem; color: var(--muted); }
+.topbar .asof.mixed { color: var(--warn); font-weight: 600; }
+.topbar .btn { gap: var(--space-2); }
 .page > h1 + section h2:first-child, .page > h1 + .card h2:first-child { margin-top: var(--space-4); }
 
 @media (max-width: 640px) {
@@ -237,10 +247,10 @@ main { min-width: 0; }
   body { padding-bottom: 88px; }
   .side { position: fixed; top: auto; left: 0; right: 0; bottom: 0; z-index: 10; background: var(--surface);
     border-top: 1px solid var(--border); padding-bottom: env(safe-area-inset-bottom); }
-  .brand { display: none; }
+  .brand, .nav-heading { display: none; }
   .nav { flex-direction: row; gap: 0; }
   .nav li { flex: 1 1 0; min-width: 0; }
-  .nav a { min-height: 56px; display: flex; align-items: center; justify-content: center; text-align: center;
+  .nav a { min-height: 56px; flex-direction: column; justify-content: center; gap: 2px; text-align: center;
     padding: 4px 2px; font-size: 0.75rem; border-left: 0; border-top: 3px solid transparent; border-radius: 0; }
   .nav a[aria-current="page"] { background: none; border-top-color: var(--accent); }
 }
@@ -381,7 +391,7 @@ button.help-btn { margin-left: var(--space-2); min-width: 32px; min-height: 32px
 .facts dt { color: var(--muted); }
 .facts dd { margin: 0; }
 @media print {
-  .side, .noprint, #alerts, #demo-banner, #loading, .skip { display: none !important; }
+  .side, .topbar, .noprint, #alerts, #demo-banner, #loading, .skip { display: none !important; }
   .shell { display: block; }
   body { padding-bottom: 0; background: #fff; color: #000; }
   .card { border: 0; box-shadow: none; padding: 0; }

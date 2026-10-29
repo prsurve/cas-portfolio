@@ -92,6 +92,7 @@ function renderTotals(p) {
   const a = p.as_of;
   const range = !a ? null : a.from === a.to ? `as of ${day(a.to)}` : `${day(a.from)} to ${day(a.to)}`;
   const mfDate = p.statements.mf ? `as of ${day(p.statements.mf.period_to)}` : null;
+  window.Nav.setAsOf(range ? `Values ${range}` : "", Boolean(a && a.mixed));
   const tiles = [tile("Total value", money(t.value), range)];
   if (p.statements.demat) {
     tiles.push(tile("Demat holdings", money(t.demat_value), `as of ${day(p.statements.demat.period_to)}`));

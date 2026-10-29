@@ -30,6 +30,7 @@
       onShow(page, arg, moveFocus);  // charts measure their width, so they redraw once their page is visible
     };
 
+    initTheme();
     window.addEventListener("hashchange", () => {
       const found = route(location.hash);
       if (found) show(found.page, found.arg, true);
@@ -45,5 +46,29 @@
     show(first, found ? found.arg : null, false);
   }
 
-  window.Nav = { init, PAGES };
+  // The header shows which date the numbers are from on every page. A mixed range is a warning, so it says so in words.
+  function setAsOf(text, mixed) {
+    const node = document.getElementById("asof");
+    node.textContent = text ? (mixed ? `${text} (statements of different dates)` : text) : "";
+    node.classList.toggle("mixed", Boolean(mixed));
+  }
+
+  // One button cycles System, Light, Dark; Settings has the same choice as radio buttons.
+  function initTheme() {
+    const button = document.getElementById("theme-toggle"), label = document.getElementById("theme-label");
+    const NAMES = { system: "Auto", light: "Light", dark: "Dark" };
+    const paint = () => {
+      const current = window.Theme.get();
+      label.textContent = NAMES[current];
+      button.setAttribute("aria-label", `Theme: ${NAMES[current]}. Change theme`);
+    };
+    button.addEventListener("click", () => {
+      const order = window.Theme.VALID;
+      window.Theme.set(order[(order.indexOf(window.Theme.get()) + 1) % order.length]);
+      paint();
+    });
+    paint();
+  }
+
+  window.Nav = { init, PAGES, setAsOf, initTheme };
 })();
