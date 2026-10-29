@@ -118,7 +118,7 @@ tbody tr.holding { cursor: pointer; }
 tbody tr.holding:hover { background: var(--bg); }
 .gain { color: var(--gain); }
 .loss { color: var(--loss); }
-.chip { font-size: 0.72rem; border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; margin-right: 4px; }
+.chip { background: var(--bg); font-size: 0.72rem; border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; margin-right: 4px; }
 .symbol { font-weight: 600; }
 .subtle { color: var(--muted); font-size: 0.78rem; }
 .empty { padding: 24px; text-align: center; color: var(--muted); }
@@ -160,10 +160,16 @@ caption { text-align: left; font-weight: 600; font-size: 0.8rem; color: var(--mu
 .checks .warn .mark { color: var(--warn); }
 .checks .detail { color: var(--muted); font-size: 0.8rem; margin-top: 2px; }
 
-.toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 4px 0 10px; font-size: 0.875rem; color: var(--muted); }
-.toolbar label { display: flex; gap: 6px; align-items: center; }
-.toolbar input[type="search"], .toolbar select { font: inherit; padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); }
+/* Filter bar: one panel, each control labelled above it, the search box taking the spare width. */
+.toolbar { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: flex-end; margin: var(--space-3) 0; padding: var(--space-3);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); font-size: 0.875rem; color: var(--muted); }
+.toolbar label { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); font-size: 0.78rem; }
+.toolbar label.filter { flex-direction: row; align-items: center; gap: var(--space-2); margin: 0; min-height: 36px; font-size: 0.875rem; }
+.toolbar input[type="search"], .toolbar select { font: inherit; font-size: 0.875rem; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); }
 .toolbar input[type="search"] { min-width: 230px; }
+.toolbar label:has(input[type="search"]) { flex: 1 1 260px; }
+.toolbar label:has(input[type="search"]) input { width: 100%; }
+.toolbar [role="status"] { margin-left: auto; align-self: center; }
 th button.sort { all: unset; cursor: pointer; font-weight: 600; color: inherit; font-size: inherit; }
 th button.sort:hover, th button.sort:focus-visible { color: var(--text); text-decoration: underline; }
 th button.sort::after { content: " " attr(data-arrow); color: var(--accent); }
@@ -273,6 +279,8 @@ main { min-width: 0; }
 .movers .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* Holding detail */
+#holding-title { font-size: 1.5rem; margin: var(--space-4) 0 var(--space-1); }
+.detail-sub { margin: 0 0 var(--space-4); }
 a.symbol { color: var(--text); text-decoration: none; font-weight: 600; }
 a.symbol:hover { text-decoration: underline; color: var(--accent); }
 #holding-detail h3 { font-size: 1rem; margin: var(--space-5) 0 var(--space-2); }
