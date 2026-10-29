@@ -124,5 +124,6 @@ function initSettings() {
     resetHoldingsView();
     document.getElementById("display-status").textContent = "Display settings reset.";
   });
+  window.addEventListener("themechange", syncThemeRadios);
   syncThemeRadios();
 }

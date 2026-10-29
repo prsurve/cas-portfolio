@@ -20,23 +20,23 @@ def test_chart_palette_is_the_validated_one():
     found = re.findall(r"--series-(\d):\s*(#[0-9a-fA-F]{6});", css)
     expected_light = [(str(i + 1), h) for i, h in enumerate(SERIES["light"])]
     expected_dark = [(str(i + 1), h) for i, h in enumerate(SERIES["dark"])]
-    # light, dark when the system is dark, dark when forced from Settings: the last two must be identical
-    assert found[:4] == expected_light and found[4:8] == expected_dark and found[8:12] == expected_dark
-    assert len(found) == 12, "a series colour was added or dropped: validate the palette again"
-    # the dark values live inside the dark-mode media query
-    dark_block = css[css.index("prefers-color-scheme: dark"):]
+    # light, then dark (one definition, keyed on data-theme)
+    assert found[:4] == expected_light and found[4:8] == expected_dark
+    assert len(found) == 8, "a series colour was added or dropped: validate the palette again"
+    dark_block = css[css.index(':root[data-theme="dark"]'):]
     assert all(h in dark_block[:900] for h in SERIES["dark"])
 
 
-def test_forced_dark_theme_is_a_copy_of_the_system_dark_theme():
-    """Dark exists twice (system dark, and forced from Settings). They must never drift apart."""
-    css = (CSS_SOURCE).read_text()
-    media = css[css.index('@media (prefers-color-scheme: dark)'):css.index(':root[data-theme="dark"]')]
-    forced = css[css.index(':root[data-theme="dark"]'):css.index(':root[data-theme="light"]')]
-    tokens = lambda block: dict(re.findall(r"--([\w-]+):\s*(#[0-9a-fA-F]{6})", block))  # noqa: E731
-    assert tokens(media) == tokens(forced) and len(tokens(media)) >= 14
-    assert 'color-scheme: dark' in forced
-    assert ':root:not([data-theme="light"])' in media, "an explicit light choice must beat a dark system"
+def test_dark_theme_is_defined_once_and_the_script_resolves_the_system_choice():
+    """Dark used to exist twice (system and forced), kept equal by a test. Now theme.js always sets data-theme to
+    light or dark, so a copy in a media query would only be a second place to forget."""
+    css = CSS_SOURCE.read_text()
+    assert css.count(':root[data-theme="dark"] {') == 1 and "@media (prefers-color-scheme" not in css
+    assert len(re.findall(r"--bg:\s*#", css)) == 2, "one light and one dark definition of --bg"
+    assert "color-scheme: dark" in css[css.index(':root[data-theme="dark"]'):]
+    js = (STATIC / "theme.js").read_text()
+    assert 'matchMedia("(prefers-color-scheme: dark)")' in js and 'addEventListener("change"' in js
+    assert 'removeAttribute("data-theme")' not in js, "the attribute is always set, never removed"
 
 
 def test_script_never_writes_inline_styles_or_markup():
@@ -103,7 +103,7 @@ def test_search_boxes_are_debounced():
 def _theme_colours():
     """Colour tokens for light and dark, read from app.css."""
     css = (CSS_SOURCE).read_text()
-    split = css.index("prefers-color-scheme: dark")
+    split = css.index(':root[data-theme="dark"]')
     end = css.index("* { box-sizing")
     token = re.compile(r"--([\w-]+):\s*(#[0-9a-fA-F]{6})")
     light = dict(token.findall(css[:split]))
@@ -388,3 +388,10 @@ def test_performance_page_has_jump_links_to_every_section():
     sections = re.findall(r'<section [^>]*id="([\w-]+-section)"', page)
     assert jumps == sections and len(sections) == 7, "each section has a link, in page order"
     assert re.search(r"\.page section\s*\{[^}]*scroll-margin-top", CSS_SOURCE.read_text()), "jumps must clear the sticky header"
+
+
+def test_every_place_that_shows_the_theme_follows_changes_to_it():
+    """The header button and the Settings radios both show the theme; changing it in one must update the other."""
+    assert 'dispatchEvent(new Event("themechange"))' in (STATIC / "theme.js").read_text()
+    assert '"themechange", paint' in (STATIC / "nav.js").read_text()
+    assert '"themechange", syncThemeRadios' in (STATIC / "settings.js").read_text()

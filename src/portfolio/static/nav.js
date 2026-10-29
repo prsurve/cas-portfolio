@@ -83,6 +83,7 @@
       window.Theme.set(order[(order.indexOf(window.Theme.get()) + 1) % order.length]);
       paint();
     });
+    window.addEventListener("themechange", paint);
     paint();
   }
 
