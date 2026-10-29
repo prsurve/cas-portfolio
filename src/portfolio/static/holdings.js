@@ -173,7 +173,7 @@ function renderHoldings(p) {
     return expandable([
       el("td", null,
         el("a", { class: "symbol", href: `#/holdings/${encodeURIComponent(h.key)}` }, h.name),
-        el("div", { class: "subtle" }, h.sub.filter(Boolean).join(" · "))),
+        el("div", { class: "subtle" }, el("span", { class: "chip" }, h.sub[0]), h.sub.slice(1).filter(Boolean).join(" · "))),
       el("td", { class: "num", "data-label": "Quantity" }, qtyFmt.format(h.quantity)),
       el("td", { class: "num", "data-label": "Price" }, price(h.price), el("div", { class: "subtle" }, day(h.priceDate))),
       el("td", { class: "num", "data-label": "Value" }, money(h.value)),
@@ -244,7 +244,7 @@ function renderHoldingDetail(d) {
   document.getElementById("holding-detail").replaceChildren(el("div", null,  // el() skips null children; replaceChildren would print "null"
     el("p", null, el("a", { href: "#/holdings" }, "← All holdings")),
     heading,
-    el("p", { class: "subtle" }, [d.kind, d.symbol, d.amc, d.isin].filter(Boolean).join(" · ")),
+    el("p", { class: "subtle detail-sub" }, el("span", { class: "chip" }, d.kind), [d.symbol, d.amc, d.isin].filter(Boolean).join(" · ")),
     el("div", { class: "tiles" },
       tileEl("Statement value", money(d.value), d.as_of ? `as of ${day(d.as_of.to)}` : null),
       tileEl("Share of portfolio", d.weight === null ? Fmt.MISSING : `${d.weight.toFixed(1)}%`),

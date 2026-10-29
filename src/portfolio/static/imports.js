@@ -59,12 +59,33 @@ function reconciliationChecks(r) {
   return checks;
 }
 
+// One verdict for a read: complete, read with gaps, or nothing new. A mark and words, never colour alone.
+// Class names are written out in full so the stylesheet build can find them.
+function outcomeOf(r, problems) {
+  if (r.would === "duplicate") return { cls: "result", mark: "i", text: "Nothing new: this exact file is already imported." };
+  if (problems) {
+    return { cls: "result partial", mark: "!", text: `Read with gaps: ${plural(problems, "thing")} to check. Some rows may be missing, so some values may be too low.` };
+  }
+  if (r.kind === "mf") {
+    return { cls: "result ok", mark: "✓", text: "Read. This kind of statement prints no totals to check against, so compare the fund values with the PDF." };
+  }
+  return { cls: "result ok", mark: "✓", text: "Read completely. Every printed total matches the rows read." };
+}
+
+const problemCount = (r) => reconciliationChecks(r).filter((c) => !c[0]).length + (r.warnings || []).length;
+
+function outcomeLine(o) {
+  return el("p", { class: "outcome" }, el("span", { class: "mark", "aria-hidden": "true" }, o.mark), o.text);
+}
+
 function renderCheck(r) {
   const checks = reconciliationChecks(r);
-  const problems = checks.filter((c) => !c[0]).length + r.warnings.length;
+  const problems = problemCount(r);
   const duplicate = r.would === "duplicate";
+  const outcome = outcomeOf(r, problems);
   const box = document.getElementById("upload-result");
-  box.replaceChildren(el("div", { class: "result" },
+  box.replaceChildren(el("div", { class: outcome.cls },
+    outcomeLine(outcome),
     el("div", { class: "result-title" }, `${r.issuer} statement, ${day(r.period_from)} to ${day(r.period_to)}`),
     el("p", { class: duplicate ? "subtle" : "" }, WOULD[r.would]),
     ...summaryLines(r),
@@ -82,7 +103,12 @@ function renderCheck(r) {
 }
 
 function renderSaved(r) {
-  document.getElementById("upload-result").replaceChildren(el("div", { class: "result" },
+  const problems = problemCount(r);
+  const outcome = problems
+    ? { cls: "result partial", mark: "!", text: `Saved with gaps: ${plural(problems, "thing")} to check. They are listed under Data quality on the Overview.` }
+    : { cls: "result ok", mark: "✓", text: r.created ? "Saved. Every printed total matched." : "Already saved. Nothing changed." };
+  document.getElementById("upload-result").replaceChildren(el("div", { class: outcome.cls },
+    outcomeLine(outcome),
     el("div", { class: "result-title" },
       `${r.created ? "Saved" : "Already saved"}: ${r.issuer} statement, ${day(r.period_from)} to ${day(r.period_to)}`),
     ...summaryLines(r),
@@ -113,8 +139,14 @@ async function previewUpload(event) {
   } catch (err) {
     pendingUpload = null;
     setStep("file");
-    box.replaceChildren(el("div", { class: "result error" }, el("strong", null, "Could not read this file. "), err.message,
-      el("div", { class: "subtle" }, "Check that it is a CAS PDF from NSDL, CDSL, CAMS or KFintech and that the password is right.")));
+    box.replaceChildren(el("div", { class: "result error" },
+      el("p", { class: "outcome" }, el("span", { class: "mark", "aria-hidden": "true" }, "×"), "Not read. Nothing was saved."),
+      el("p", null, err.message),
+      el("div", { class: "subtle" }, "Things to check:"),
+      el("ul", null,
+        el("li", null, "The password. NSDL and CDSL use your PAN in capitals; CAMS and KFintech use the one you chose."),
+        el("li", null, "That it is a CAS PDF from NSDL, CDSL, CAMS or KFintech, not a scanned copy or another report."),
+        el("li", null, "That the file is the whole statement, downloaded from the issuer."))));
     document.getElementById("password").value = "";
   } finally {
     box.removeAttribute("aria-busy");
@@ -158,7 +190,7 @@ function statementStatus(s) {
   const notes = [];
   if (s.outdated) notes.push(el("div", { class: "loss" }, "Read by an older version. Upload this PDF again to refresh it."));
   if (s.warnings.length) notes.push(el("div", { class: "loss" }, `${s.warnings.length} warning(s)`));
-  return notes.length ? notes : "OK";
+  return notes.length ? notes : el("span", { class: "status ok" }, el("span", { "aria-hidden": "true" }, "✓ "), "OK");
 }
 
 // What was read from one statement and how each printed total compares. Fetched when its row is opened.
@@ -201,7 +233,7 @@ function renderStatements(list) {
       el("td", { "data-label": "Period" }, `${day(s.period_from)} – ${day(s.period_to)}`),
       el("td", { "data-label": "Imported" }, day(s.imported_at)),
       el("td", { "data-label": "Status" }, statementStatus(s)),
-      el("td", { class: "num" }, toggle, " ", el("button", { type: "button", onclick: () => removeStatement(s) }, "Delete"))), detail];
+      el("td", { class: "num" }, toggle, " ", deleteButton(s))), detail];
   });
   if (rows.length === 0) {
     rows.push(el("tr", null, el("td", { colspan: "6", class: "empty" }, "Nothing imported yet. Choose a statement above.")));
@@ -209,8 +241,21 @@ function renderStatements(list) {
   document.querySelector("#statements tbody").replaceChildren(...rows);
 }
 
+// Two clicks, so a stray one deletes nothing (no browser confirm box); leaving the button cancels.
+function deleteButton(s) {
+  const btn = el("button", { type: "button", "aria-label": `Delete the ${ISSUERS[s.issuer]} statement to ${day(s.period_to)}` }, "Delete");
+  let armed = false;
+  const disarm = () => { armed = false; btn.textContent = "Delete"; };
+  btn.addEventListener("click", () => {
+    if (!armed) { armed = true; btn.textContent = "Click again to delete"; return; }
+    disarm();
+    removeStatement(s);
+  });
+  btn.addEventListener("blur", disarm);
+  return btn;
+}
+
 async function removeStatement(s) {
-  if (!confirm(`Delete the ${ISSUERS[s.issuer]} statement to ${day(s.period_to)}? Its holdings are removed.`)) return;
   try {
     await api(`/api/statements/${s.id}`, { method: "DELETE" });
   } catch (err) {

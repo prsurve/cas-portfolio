@@ -56,6 +56,7 @@ function renderConfidence(r) {
   document.getElementById("freshness").replaceChildren(...sourceChecks(r.sources).map(checkItem));
 
   const attention = r.issues.filter((i) => i.severity === "attention");
+  document.getElementById("quality-card").classList.toggle("has-attention", attention.length > 0);
   document.getElementById("completeness-summary").textContent = attention.length === 0
     ? "All checks passed. Every figure is backed by what the statements printed."
     : `${plural(attention.length, "thing")} to look at. Each says which figures it affects and what to do.`;

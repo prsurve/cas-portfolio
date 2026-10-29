@@ -4,6 +4,7 @@ import re
 from pathlib import Path
 
 STATIC = Path(__file__).resolve().parent.parent / "src" / "portfolio" / "static"
+CSS_SOURCE = STATIC / "src" / "app.src.css"  # the built app.css is generated from it (scripts/build_css.sh)
 JS = [STATIC / "app.js", STATIC / "tools.js", STATIC / "nav.js", STATIC / "holdings.js", STATIC / "imports.js", STATIC / "settings.js", STATIC / "theme.js", STATIC / "returns.js", STATIC / "lots.js", STATIC / "confidence.js", STATIC / "help.js", STATIC / "stress.js", STATIC / "drift.js", STATIC / "reports.js", STATIC / "timeline.js"]
 
 # Validated with the dataviz skill's scripts/validate_palette.js against this app's card surfaces
@@ -15,27 +16,27 @@ SERIES = {
 
 
 def test_chart_palette_is_the_validated_one():
-    css = (STATIC / "app.css").read_text()
+    css = (CSS_SOURCE).read_text()
     found = re.findall(r"--series-(\d):\s*(#[0-9a-fA-F]{6});", css)
     expected_light = [(str(i + 1), h) for i, h in enumerate(SERIES["light"])]
     expected_dark = [(str(i + 1), h) for i, h in enumerate(SERIES["dark"])]
-    # light, dark when the system is dark, dark when forced from Settings: the last two must be identical
-    assert found[:4] == expected_light and found[4:8] == expected_dark and found[8:12] == expected_dark
-    assert len(found) == 12, "a series colour was added or dropped: validate the palette again"
-    # the dark values live inside the dark-mode media query
-    dark_block = css[css.index("prefers-color-scheme: dark"):]
+    # light, then dark (one definition, keyed on data-theme)
+    assert found[:4] == expected_light and found[4:8] == expected_dark
+    assert len(found) == 8, "a series colour was added or dropped: validate the palette again"
+    dark_block = css[css.index(':root[data-theme="dark"]'):]
     assert all(h in dark_block[:900] for h in SERIES["dark"])
 
 
-def test_forced_dark_theme_is_a_copy_of_the_system_dark_theme():
-    """Dark exists twice (system dark, and forced from Settings). They must never drift apart."""
-    css = (STATIC / "app.css").read_text()
-    media = css[css.index('@media (prefers-color-scheme: dark)'):css.index(':root[data-theme="dark"]')]
-    forced = css[css.index(':root[data-theme="dark"]'):css.index(':root[data-theme="light"]')]
-    tokens = lambda block: dict(re.findall(r"--([\w-]+):\s*(#[0-9a-fA-F]{6})", block))  # noqa: E731
-    assert tokens(media) == tokens(forced) and len(tokens(media)) >= 14
-    assert 'color-scheme: dark' in forced
-    assert ':root:not([data-theme="light"])' in media, "an explicit light choice must beat a dark system"
+def test_dark_theme_is_defined_once_and_the_script_resolves_the_system_choice():
+    """Dark used to exist twice (system and forced), kept equal by a test. Now theme.js always sets data-theme to
+    light or dark, so a copy in a media query would only be a second place to forget."""
+    css = CSS_SOURCE.read_text()
+    assert css.count(':root[data-theme="dark"] {') == 1 and "@media (prefers-color-scheme" not in css
+    assert len(re.findall(r"--bg:\s*#", css)) == 2, "one light and one dark definition of --bg"
+    assert "color-scheme: dark" in css[css.index(':root[data-theme="dark"]'):]
+    js = (STATIC / "theme.js").read_text()
+    assert 'matchMedia("(prefers-color-scheme: dark)")' in js and 'addEventListener("change"' in js
+    assert 'removeAttribute("data-theme")' not in js, "the attribute is always set, never removed"
 
 
 def test_script_never_writes_inline_styles_or_markup():
@@ -57,7 +58,7 @@ def test_script_never_writes_inline_styles_or_markup():
 def test_nothing_can_stretch_the_page_sideways():
     """Two real bugs found at 360px: a grid column with a 340px minimum, and hidden screen-reader text that is
     absolutely positioned and so escaped its table's scroll box (the page measured 610px on a 345px screen)."""
-    css = (STATIC / "app.css").read_text()
+    css = (CSS_SOURCE).read_text()
     assert re.search(r"\.table-wrap\s*\{[^}]*position:\s*relative[^}]*overflow-x:\s*auto", css), \
         ".table-wrap must be position: relative, or .sr-only text inside a wide table widens the page"
     assert "minmax(min(340px, 100%)" in css and "minmax(340px" not in css.replace("min(340px", ""), \
@@ -68,7 +69,7 @@ def test_every_table_column_has_a_phone_label():
     """On a phone a row becomes a card and each number is labelled from data-label. A new column needs a label."""
     html = (STATIC / "index.html").read_text()
     js = "".join(p.read_text() for p in JS)
-    assert "@media (max-width: 640px)" in (STATIC / "app.css").read_text()
+    assert "@media (max-width: 640px)" in (CSS_SOURCE).read_text()
     tables = re.findall(r'<table id="(\w+)" class="cards">(.*?)</table>', html, re.S)
     assert {t[0] for t in tables} == {"history", "changes", "holdings", "statements", "audit", "backups", "returns", "lots", "figures", "stress", "drift", "snapshots", "timeline"}
     for table_id, body in tables:
@@ -82,7 +83,7 @@ def test_every_table_column_has_a_phone_label():
 
 def test_every_kind_of_control_has_a_visible_focus_ring():
     """Keyboard users need to see where they are: links, buttons, inputs, selects, summaries and focusable rows."""
-    css = (STATIC / "app.css").read_text()
+    css = (CSS_SOURCE).read_text()
     rule = re.search(r"([^{}]*:focus-visible[^{}]*)\{[^}]*outline", css, re.S)
     assert rule, "no :focus-visible outline rule"
     for selector in ("a:focus-visible", "button:focus-visible", "input:focus-visible", "select:focus-visible",
@@ -91,7 +92,7 @@ def test_every_kind_of_control_has_a_visible_focus_ring():
 
 
 def test_screen_reader_text_does_not_wrap():
-    assert re.search(r"\.sr-only\s*\{[^}]*white-space:\s*nowrap", (STATIC / "app.css").read_text())
+    assert re.search(r"\.sr-only\s*\{[^}]*white-space:\s*nowrap", (CSS_SOURCE).read_text())
 
 
 def test_search_boxes_are_debounced():
@@ -101,8 +102,8 @@ def test_search_boxes_are_debounced():
 
 def _theme_colours():
     """Colour tokens for light and dark, read from app.css."""
-    css = (STATIC / "app.css").read_text()
-    split = css.index("prefers-color-scheme: dark")
+    css = (CSS_SOURCE).read_text()
+    split = css.index(':root[data-theme="dark"]')
     end = css.index("* { box-sizing")
     token = re.compile(r"--([\w-]+):\s*(#[0-9a-fA-F]{6})")
     light = dict(token.findall(css[:split]))
@@ -131,7 +132,7 @@ def test_text_colours_meet_wcag_aa_in_both_themes():
 
 
 def test_allocation_labels_are_readable_on_every_segment_colour():
-    css = (STATIC / "app.css").read_text()
+    css = (CSS_SOURCE).read_text()
     assert re.search(r"\.stack \.seg\s*\{[^}]*color:\s*#000", css), "segment labels must be black on the series colours"
     assert re.search(r"\.stack \.s0\s*\{\s*color:\s*var\(--bg\)", css)
     for name, t in zip(("light", "dark"), _theme_colours()):
@@ -141,7 +142,7 @@ def test_allocation_labels_are_readable_on_every_segment_colour():
 
 
 def test_there_is_a_tablet_breakpoint_and_big_touch_targets():
-    css = (STATIC / "app.css").read_text()
+    css = (CSS_SOURCE).read_text()
     assert "@media (min-width: 641px) and (max-width: 900px)" in css
     assert re.search(r"min-height:\s*44px", css)
 
@@ -188,30 +189,31 @@ def test_every_table_and_control_lives_inside_a_page():
 
 
 def test_nav_is_a_bottom_bar_on_phones_and_marks_the_current_page_without_colour_alone():
-    css = (STATIC / "app.css").read_text()
+    css = (CSS_SOURCE).read_text()
     assert re.search(r"\.nav a\[aria-current=\"page\"\]\s*\{[^}]*font-weight:\s*600", css)
     assert re.search(r"@media \(max-width: 640px\) \{\s*\.shell \{ display: block; \}.*?\.side \{ position: fixed", css, re.S)
 
 
 def test_hidden_attribute_always_wins_over_display_rules():
     """Found by looking at the page: .tiles { display: grid } kept the empty install's totals on screen."""
-    assert re.search(r"\[hidden\]\s*\{\s*display:\s*none\s*!important", (STATIC / "app.css").read_text())
+    assert re.search(r"\[hidden\]\s*\{\s*display:\s*none\s*!important", (CSS_SOURCE).read_text())
 
 
 def test_links_use_the_theme_colour():
-    assert re.search(r"^a \{ color: var\(--accent\); \}", (STATIC / "app.css").read_text(), re.M)
+    assert re.search(r"^a \{ color: var\(--accent\); \}", (CSS_SOURCE).read_text(), re.M)
 
 
 def test_overview_has_its_panels_and_links_to_the_pages_behind_them():
     html = (STATIC / "index.html").read_text()
     start = html.index('id="page-overview"')
     overview = html[start:html.index('id="page-holdings"')]
-    for panel in ("totals", "prices-bar", "fresh-section", "prev-section", "complete-section", "alloc-section", "conc-section"):
+    for panel in ("totals", "prices-bar", "fresh-section", "prev-section", "complete-section", "alloc-section", "conc-section", "recent-section"):
         assert f'id="{panel}"' in overview, f"Overview lost its {panel} panel"
     for target in ("#/imports", "#/holdings", "#/performance"):
         assert f'href="{target}"' in overview, f"Overview has no link to {target}"
-    assert overview.index('id="totals"') < overview.index('id="fresh-section"') < overview.index('id="prev-section"') \
-        < overview.index('id="complete-section"') < overview.index('id="alloc-section"')
+    # headline first, then what needs attention, what changed, the mix, and where the data comes from last
+    order = ["totals", "prices-bar", "complete-section", "prev-section", "alloc-section", "conc-section", "recent-section", "fresh-section"]
+    assert [overview.index(f'id="{p}"') for p in order] == sorted(overview.index(f'id="{p}"') for p in order)
 
 
 def test_data_quality_shows_what_each_issue_affects_and_what_to_do():
@@ -263,9 +265,15 @@ def test_danger_button_text_is_readable_in_both_themes():
         assert contrast(t["bg"], t["loss"]) >= 4.5, f"{name}: danger button text"
 
 
+def _section(html, section_id):
+    """The text of one <section>, up to its closing tag, so the order of the sections does not matter."""
+    start = html.index(f'id="{section_id}"')
+    return html[start:html.index("</section>", start)]
+
+
 def test_returns_section_states_its_limits_and_asks_only_when_shown():
     html, js = (STATIC / "index.html").read_text(), (STATIC / "returns.js").read_text()
-    section = html[html.index('id="returns-section"'):html.index('id="changes-section"')]
+    section = _section(html, "returns-section")
     for phrase in ("whole holding", "never estimated", "not comparable", "not tax advice"):
         assert phrase in section, f"the Returns section must say: {phrase}"
     assert 'document.getElementById("page-performance").hidden' in js, "returns are worked out only while the page shows"
@@ -275,7 +283,7 @@ def test_returns_section_states_its_limits_and_asks_only_when_shown():
 
 def test_long_text_in_the_returns_table_wraps():
     """A skipped fund's reason is a sentence. Unwrapped, it pushed every other column off the screen at desktop width."""
-    assert re.search(r"#returns td:first-child\s*\{[^}]*white-space:\s*normal", (STATIC / "app.css").read_text())
+    assert re.search(r"#returns td:first-child\s*\{[^}]*white-space:\s*normal", (CSS_SOURCE).read_text())
 
 
 def test_the_page_stores_only_display_settings_in_the_browser():
@@ -298,14 +306,14 @@ def test_saved_views_have_a_dialog_with_an_error_area():
 
 def test_tablet_shell_override_comes_after_the_base_shell_rule():
     """An earlier media rule silently lost to the later base rule (found by measuring the page at 900px)."""
-    css = (STATIC / "app.css").read_text()
+    css = (CSS_SOURCE).read_text()
     base = css.index(".shell { display: grid; grid-template-columns: 176px")
     tablet = css.rindex("@media (min-width: 641px) and (max-width: 900px)")
     assert tablet > base and ".shell { grid-template-columns: 132px" in css[tablet:]
 
 
 def test_headings_that_receive_focus_do_not_show_a_ring():
-    css = (STATIC / "app.css").read_text()
+    css = (CSS_SOURCE).read_text()
     assert re.search(r'h1\[tabindex="-1"\]:focus[^{]*\{\s*outline:\s*none', css)
     assert "[tabindex]:focus-visible" in css, "other focusable things keep their ring"
 
@@ -338,10 +346,60 @@ def test_history_by_class_table_labels_every_value_cell():
 
 def test_lots_section_states_its_limits_and_asks_only_when_shown():
     html, js = (STATIC / "index.html").read_text(), (STATIC / "lots.js").read_text()
-    section = html[html.index('id="lots-section"'):html.index('id="changes-section"')]
+    section = _section(html, "lots-section")
     for phrase in ("whole holding", "never estimated", "not tax advice", "oldest lots first"):
         assert phrase in section, f"the Lots section must say: {phrase}"
     assert 'document.getElementById("page-performance").hidden' in js, "lots are worked out only while the page shows"
     assert "lastLotsKey = key;  // only a success is remembered" in js
     assert 'f.status === "ok" ? null' in js and "f.reason" in js, "a skipped fund shows its reason"
-    assert re.search(r"#lots td:first-child\s*\{[^}]*white-space:\s*normal", (STATIC / "app.css").read_text())
+    assert re.search(r"#lots td:first-child\s*\{[^}]*white-space:\s*normal", (CSS_SOURCE).read_text())
+
+
+# ---- the Tailwind build ---------------------------------------------------------------
+
+
+def test_built_stylesheet_is_present_licensed_and_has_the_components_the_page_uses():
+    """app.css is generated from app.src.css and committed (CI rebuilds it and fails if it differs). The page loads
+    only the built file, and Tailwind's MIT notice must stay at its top."""
+    built = (STATIC / "app.css").read_text()
+    assert built.startswith("/*! tailwindcss v") and "MIT License" in built.splitlines()[0]
+    assert "@import" not in built and "@source" not in built, "app.css is the build output, not the source"
+    for selector in (".btn", ".card", ".tile", ".table-wrap", ".stack", ".nav", ".sr-only", "table.cards"):
+        assert selector in built, f"{selector} missing from app.css: run scripts/build_css.sh"
+    assert len(built) < 120_000, "the stylesheet should stay small for a Raspberry Pi"
+    assert '/static/app.css"' in (STATIC / "index.html").read_text()
+
+
+def test_no_utility_class_is_assembled_from_pieces():
+    """Tailwind only generates a class it can read as a whole word in index.html or a script. Colours and sizes
+    chosen at run time must come from a map of full class names."""
+    for path in JS:
+        for line in path.read_text().splitlines():
+            if line.lstrip().startswith("//"):
+                continue
+            assert not re.search(r"""class(?:Name)?\s*[:=]\s*[`"'][^`"']*(?:bg|text|border|grid-cols|gap|p|m)-[`"']\s*\+""", line), \
+                f"{path.name}: a utility class built by concatenation: {line.strip()[:80]}"
+
+
+def test_performance_page_has_jump_links_to_every_section():
+    html = (STATIC / "index.html").read_text()
+    page = html[html.index('id="page-performance"'):html.index('id="page-imports"')]
+    jumps = re.findall(r'data-jump="([\w-]+)"', page)
+    sections = re.findall(r'<section [^>]*id="([\w-]+-section)"', page)
+    assert jumps == sections and len(sections) == 7, "each section has a link, in page order"
+    assert re.search(r"\.page section\s*\{[^}]*scroll-margin-top", CSS_SOURCE.read_text()), "jumps must clear the sticky header"
+
+
+def test_every_place_that_shows_the_theme_follows_changes_to_it():
+    """The header button and the Settings radios both show the theme; changing it in one must update the other."""
+    assert 'dispatchEvent(new Event("themechange"))' in (STATIC / "theme.js").read_text()
+    assert '"themechange", paint' in (STATIC / "nav.js").read_text()
+    assert '"themechange", syncThemeRadios' in (STATIC / "settings.js").read_text()
+
+
+def test_report_tables_cannot_widen_the_page_with_a_long_name():
+    """A long fund name ('... REGULAR PLAN - GROWTH OPTION') made the report's table wider than its card, and the
+    whole Reports page then scrolled sideways on desktop."""
+    css = CSS_SOURCE.read_text()
+    assert re.search(r"\.report\s*\{[^}]*position:\s*relative[^}]*overflow-x:\s*auto", css)
+    assert re.search(r"\.report td:first-child\s*\{[^}]*white-space:\s*normal", css)

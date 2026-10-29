@@ -13,9 +13,10 @@
       return VALID.includes(v) ? v : "system";
     } catch (e) { return "system"; }
   }
+  // The stylesheet has one dark definition, keyed on data-theme, so "system" is resolved here and followed live.
+  const device = window.matchMedia("(prefers-color-scheme: dark)");
   function apply(theme) {
-    if (theme === "system") root.removeAttribute("data-theme");
-    else root.setAttribute("data-theme", theme);
+    root.setAttribute("data-theme", theme === "system" ? (device.matches ? "dark" : "light") : theme);
   }
   function set(theme) {
     if (!VALID.includes(theme)) return;
@@ -24,8 +25,10 @@
       else localStorage.setItem(KEY, theme);
     } catch (e) { /* private mode: the choice lasts until the page closes */ }
     apply(theme);
+    window.dispatchEvent(new Event("themechange"));  // the header button and the Settings radios both follow it
   }
 
   apply(get());
+  device.addEventListener("change", () => { if (get() === "system") apply("system"); });
   window.Theme = { get, set, VALID };
 })();
