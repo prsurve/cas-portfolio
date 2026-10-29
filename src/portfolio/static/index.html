@@ -300,6 +300,32 @@
         </div>
       </section>
 
+      <section aria-labelledby="lots-h" id="lots-section" hidden>
+        <h2 id="lots-h" data-help="lots">Tax lots on mutual funds</h2>
+        <p class="subtle">
+          Each purchase is a lot, and each sale uses the oldest lots first. Only funds whose transactions cover the whole holding
+          and add up to the units held are shown with figures; any other fund is listed with the reason, never estimated. Proceeds are the amounts printed on your statement. Only the days held are given, because whether a gain
+          is short or long term depends on the kind of fund and the purchase date. Check it against your own working: this is not tax advice.
+        </p>
+        <div id="lots-totals" class="card" hidden></div>
+        <p id="lots-status" class="subtle" role="status"></p>
+        <div class="table-wrap">
+          <table id="lots" class="cards">
+            <thead>
+              <tr>
+                <th scope="col">Fund</th>
+                <th scope="col" class="num">Open cost</th>
+                <th scope="col" class="num">Unrealised gain</th>
+                <th scope="col" class="num">Sold for</th>
+                <th scope="col" class="num">Cost of sold units</th>
+                <th scope="col" class="num">Realised gain</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
       <section aria-labelledby="changes-h" id="changes-section" hidden>
         <h2 id="changes-h" data-help="changes">What changed between statements</h2>
         <p class="subtle">
@@ -535,6 +561,7 @@
   <script src="/static/imports.js"></script>
   <script src="/static/confidence.js"></script>
   <script src="/static/returns.js"></script>
+  <script src="/static/lots.js"></script>
   <script src="/static/settings.js"></script>
   <script src="/static/stress.js"></script>
   <script src="/static/drift.js"></script>

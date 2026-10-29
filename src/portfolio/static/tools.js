@@ -190,6 +190,7 @@
     quality: "What the app could not read or could not check, and which figures it affects. A gap means rows were not recognised, not that the statement is wrong.",
     allocation: "Share of the statement total by asset class. Values are as of each statement's date, so stocks and funds may be from different days.",
     concentration: "How much of the total sits in one position or issuer. Funds are not looked through to the shares inside them.",
+    lots: "A lot is one purchase. Sales use the oldest lots first (first in, first out), so each sale shows which purchases it used and the days they were held. It is not tax advice: short or long term depends on the fund type.",
     returns: "XIRR is the yearly rate at which the money put in, the money taken out and the statement value balance. It covers only the history the statement shows, so it is not a fund's published return, and a fund with incomplete history is skipped, not estimated.",
     history: "Total value held at each statement date. It rises with new money as well as growth, so it is not a return.",
     stress: "A what-if, not a forecast: it applies the percentage you type to each asset class's statement value and adds up the result. It ignores what a class holds inside it (a mutual fund may be part debt), prices since the statement, and tax.",
