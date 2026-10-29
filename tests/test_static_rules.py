@@ -395,3 +395,11 @@ def test_every_place_that_shows_the_theme_follows_changes_to_it():
     assert 'dispatchEvent(new Event("themechange"))' in (STATIC / "theme.js").read_text()
     assert '"themechange", paint' in (STATIC / "nav.js").read_text()
     assert '"themechange", syncThemeRadios' in (STATIC / "settings.js").read_text()
+
+
+def test_report_tables_cannot_widen_the_page_with_a_long_name():
+    """A long fund name ('... REGULAR PLAN - GROWTH OPTION') made the report's table wider than its card, and the
+    whole Reports page then scrolled sideways on desktop."""
+    css = CSS_SOURCE.read_text()
+    assert re.search(r"\.report\s*\{[^}]*position:\s*relative[^}]*overflow-x:\s*auto", css)
+    assert re.search(r"\.report td:first-child\s*\{[^}]*white-space:\s*normal", css)

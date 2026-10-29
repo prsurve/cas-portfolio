@@ -397,6 +397,9 @@ button.help-btn { margin-left: var(--space-2); min-width: 32px; min-height: 32px
 .demo-banner { margin: 0 0 var(--space-3); padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 6px; }
 
 /* Reports: the report is plain and prints on its own, without the navigation or the controls. */
+/* A long fund name must wrap inside the card, not push the table past it; the card scrolls as a last resort. */
+.report { position: relative; overflow-x: auto; }
+.report td:first-child { white-space: normal; overflow-wrap: anywhere; }
 .report h3 { margin: var(--space-4) 0 var(--space-2); }
 .report h3:first-child { margin-top: 0; }
 .facts { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-1) var(--space-4); margin: 0; }
