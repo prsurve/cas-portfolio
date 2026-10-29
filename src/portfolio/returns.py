@@ -143,6 +143,22 @@ def cash_flows(rows: list[dict[str, Any]]) -> tuple[list[tuple[date, Decimal]], 
     return flows, None
 
 
+def history_problem(fund: dict[str, Any], rows: list[dict[str, Any]]) -> str | None:
+    """Why the transactions cannot be trusted to describe the whole holding, or None when they can."""
+    history = fund["history"]
+    if not rows:
+        return "No transactions were read for this fund. Only CAMS and KFintech statements list them."
+    if history == "unknown":
+        return "This statement does not say whether its transactions cover the whole holding."
+    if history == "incomplete":
+        return ("The transactions start after the fund was first bought, so they do not describe the whole holding. "
+                "Upload a CAMS or KFintech statement covering the full history.")
+    held = sum((Decimal(r["units"] or 0) for r in rows), ZERO)
+    if abs(held - fund["units"]) > UNITS_TOLERANCE:
+        return "The transactions do not add up to the units the statement says are held, so some may be missing."
+    return None
+
+
 def fund_return(fund: dict[str, Any], rows: list[dict[str, Any]], valuation_date: date) -> dict[str, Any]:
     """The return of one fund of the dashboard view (`fund` as in compute_view), given its transaction rows."""
     result: dict[str, Any] = {
@@ -151,20 +167,8 @@ def fund_return(fund: dict[str, Any], rows: list[dict[str, Any]], valuation_date
         "invested": None, "withdrawn": None, "value": fund["value"], "gain": None, "flows": 0,
         "valuation_date": fund["nav_date"] or valuation_date,
     }
-    history = fund["history"]
-    if not rows:
-        result["reason"] = "No transactions were read for this fund. Only CAMS and KFintech statements list them."
-    elif history == "unknown":
-        result["reason"] = "This statement does not say whether its transactions cover the whole holding."
-    elif history == "incomplete":
-        result["reason"] = ("The transactions start after the fund was first bought, so they do not describe the whole holding. "
-                            "Upload a CAMS or KFintech statement covering the full history.")
+    result["reason"] = history_problem(fund, rows)
     if result["reason"]:
-        return result
-
-    held = sum((Decimal(r["units"] or 0) for r in rows), ZERO)
-    if abs(held - fund["units"]) > UNITS_TOLERANCE:
-        result["reason"] = "The transactions do not add up to the units the statement says are held, so some may be missing."
         return result
     flows, problem = cash_flows(rows)
     if problem:

@@ -27,6 +27,7 @@ from portfolio.confidence import data_confidence
 from portfolio.confidence import data_confidence
 from portfolio.health import backup_list, system_health
 from portfolio.history import value_history
+from portfolio.lots import compute_lots
 from portfolio.returns import compute_returns
 from portfolio.import_log import audit_events, statement_detail, statement_summary
 from portfolio.holdings import holding_detail
@@ -297,6 +298,13 @@ def create_app(settings: Settings | None = None, store: Store | None = None,
         Computed on request (it takes a moment for a long history), from statement values."""
         view = compute_view(store, settings.stale_after_days)
         return _jsonable(compute_returns(store, view))
+
+    @app.get("/api/lots")
+    def lots() -> dict[str, Any]:
+        """First-in-first-out lots per fund: what is still open and what each sale used, from the statement's
+        transactions. A fund whose history is not complete is listed with its reason. Not tax advice."""
+        view = compute_view(store, settings.stale_after_days)
+        return _jsonable(compute_lots(store, view))
 
     @app.get("/api/holdings/{key:path}")
     def holding(key: str) -> dict[str, Any]:
