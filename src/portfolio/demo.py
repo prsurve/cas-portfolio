@@ -17,7 +17,7 @@ from pathlib import Path
 
 from casparser.enums import CASFileType, FileType, TransactionType
 from casparser.types import (
-    CASData, DematAccount, DematOwner, Equity, Folio, InvestorInfo, MutualFund, NSDLCASData, Scheme,
+    CASData, DematAccount, DematOwner, Equity, Folio, InvestorInfo, NSDLCASData, Scheme,
     SchemeValuation, StatementPeriod, TransactionData,
 )
 

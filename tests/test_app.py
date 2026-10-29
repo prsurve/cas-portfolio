@@ -219,7 +219,6 @@ def test_delete_all_is_refused_when_the_backup_fails(env, tmp_path, monkeypatch)
 
 def test_preview_saves_nothing_and_reports_what_saving_would_do(env):
     client, store, _, _ = env
-    h = {"X-Requested-With": "portfolio"}
     before = client.get("/api/export").json()
     before.pop("exported_at")
 
@@ -252,3 +251,14 @@ def test_import_status_marks_older_parser_versions(env):
     assert store.import_status(digest, 1) == "duplicate"
     assert store.import_status(digest, 999) == "replaces_older"
     assert store.import_status("0" * 64, 1) == "new"
+
+
+def test_every_state_changing_route_rejects_a_request_without_the_csrf_header(env):
+    """Sweeps the route table, so a route added later without the guard fails here."""
+    client, _, _, _ = env
+    routes = [(m, r.path) for r in client.app.routes if hasattr(r, "methods") for m in r.methods
+              if m in {"POST", "PUT", "PATCH", "DELETE"}]
+    assert len(routes) >= 9
+    for method, path in routes:
+        url = path.replace("{statement_id}", "1").replace("{snapshot_id}", "1")
+        assert client.request(method, url).status_code == 403, f"{method} {path}"

@@ -103,7 +103,7 @@ def test_request_is_a_plain_get_of_a_dated_public_url():
         seen.append((request.full_url, request.get_method(), request.data, dict(request.header_items())))
         return Resp(_zip(NSE_FILE))
 
-    day, text = bhavcopy.fetch_day("NSE", date(2026, 10, 26), opener=opener), None
+    day = bhavcopy.fetch_day("NSE", date(2026, 10, 26), opener=opener)
     [(url, method, data, headers)] = seen
     assert url == ("https://nsearchives.nseindia.com/content/cm/BhavCopy_NSE_CM_0_0_0_20261026_F_0000.csv.zip")
     assert method == "GET" and data is None and set(headers) <= {"User-agent"} and "?" not in url
@@ -279,8 +279,6 @@ def test_etf_prefers_the_exchange_and_demat_fund_units_fall_back_to_nav(store, d
 
 
 def test_a_nav_is_never_used_for_a_share(store, demat_data):
-    nav = ("Scheme Code;ISIN Div Payout/ ISIN Growth;ISIN Div Reinvestment;Scheme Name;Plan;Option;Net Asset Value;"
-           "Date\r\n1;INE009A01021;-;Odd;;;1.0;26-Oct-2026\r\n")
     store.save_prices("AMFI", {"INE009A01021": (D(1), date(2026, 10, 26))})
     _demat(store, demat_data)
     infy = next(s for s in build_view(store, today=TODAY)["stocks"] if s["isin"] == "INE009A01021")

@@ -2,7 +2,7 @@ from datetime import date
 
 from fastapi.testclient import TestClient
 
-from conftest import D, INVESTOR, scheme, txn
+from conftest import INVESTOR, scheme, txn
 from casparser.enums import CASFileType, FileType, TransactionType
 from casparser.types import CASData, Folio, StatementPeriod
 

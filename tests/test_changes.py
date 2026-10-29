@@ -6,7 +6,6 @@ from datetime import date
 from decimal import Decimal as D
 
 import pytest
-from casparser.types import MutualFund
 from conftest import equity
 from fastapi.testclient import TestClient
 
