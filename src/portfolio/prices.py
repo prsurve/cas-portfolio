@@ -151,7 +151,7 @@ def main() -> int:
         r = result[key]
         if r:
             print(f"{label}: {r['priced']} of {r['held']} priced" + (f", newest {r['latest_date']}." if r["latest_date"] else "."))
-    for key, message in result["errors"].items():
+    for message in result["errors"].values():
         print(f"Warning: {message}", file=sys.stderr)
     return 0
 

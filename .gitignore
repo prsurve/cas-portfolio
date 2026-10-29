@@ -10,3 +10,4 @@ data/
 
 # Tailwind standalone CLI (downloaded by scripts/build_css.sh)
 .tools/
+.coverage

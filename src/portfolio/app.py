@@ -24,7 +24,6 @@ from portfolio.backup import BackupError, create_backup, newest_age_days, safety
 from portfolio.changes import compare
 from portfolio.drift import InvalidTargets, clean_targets, compute_drift
 from portfolio.confidence import data_confidence
-from portfolio.confidence import data_confidence
 from portfolio.health import backup_list, system_health
 from portfolio.history import value_history
 from portfolio.lots import compute_lots
@@ -35,7 +34,7 @@ from portfolio.timeline import build_timeline
 from portfolio.portfolio_view import ASSET_CLASS_LABELS, _jsonable, build_view, compute_view
 from portfolio.prices import PriceFetchError
 from portfolio.refresh import refresh_all
-from portfolio.store import MAX_SNAPSHOTS, Store, as_utc, sqlite_file
+from portfolio.store import MAX_SNAPSHOTS, Store, sqlite_file
 
 STATIC_DIR = Path(__file__).parent / "static"
 PASSWORD_HEADER = "X-PDF-Password"
@@ -179,7 +178,7 @@ def create_app(settings: Settings | None = None, store: Store | None = None,
             made = create_backup(db_file, Path(settings.backup_dir), recipient=settings.backup_gpg_recipient,
                                  keep=settings.backup_keep)
         except BackupError:  # the message can name paths or gpg output, so it stays out of the response
-            raise HTTPException(503, "The backup could not be made. Check the backup folder and the gpg key.")
+            raise HTTPException(503, "The backup could not be made. Check the backup folder and the gpg key.") from None
         store.audit("backup_created", made.name)
         return JSONResponse({"name": made.name}, status_code=201)
 
@@ -206,7 +205,7 @@ def create_app(settings: Settings | None = None, store: Store | None = None,
                 saved = safety_backup(db_file, Path(settings.backup_dir), settings.backup_gpg_recipient).name
             except BackupError:
                 raise HTTPException(503, "Could not make a backup first, so nothing was deleted. "
-                                         "Check the backup folder and gpg key, then try again.")
+                                         "Check the backup folder and gpg key, then try again.") from None
         return {"status": "deleted", "removed": store.delete_all(), "backup": saved}
 
     @app.get("/api/portfolio")

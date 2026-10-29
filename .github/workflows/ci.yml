@@ -22,10 +22,16 @@ jobs:
       - name: Install
         run: |
           python -m venv .venv
-          .venv/bin/pip install -r requirements.lock pytest httpx
+          .venv/bin/pip install -r requirements.lock pytest httpx pytest-cov ruff pip-audit
       - name: Stylesheet is up to date
         run: scripts/build_css.sh --check
       - name: Privacy check
         run: python scripts/privacy_check.py
-      - name: Tests
-        run: PYTHONPATH=src .venv/bin/pytest -q
+      - name: Lint
+        run: .venv/bin/ruff check src tests scripts
+      - name: Dependency audit
+        run: .venv/bin/pip-audit -r requirements.lock --no-deps --disable-pip
+      - name: Tests (with coverage)
+        run: PYTHONPATH=src CI=true .venv/bin/pytest -q --cov=portfolio --cov-report=term-missing:skip-covered --cov-fail-under=94
+      - name: Page helper tests
+        run: node tests/tools.test.js
