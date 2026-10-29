@@ -183,6 +183,16 @@
 
     <div class="page" id="page-performance" data-page="performance" hidden>
       <h1 id="performance-title" tabindex="-1">Performance</h1>
+      <nav class="subnav" aria-label="Sections on this page">
+        <button type="button" data-jump="history-section">Value over time</button>
+        <button type="button" data-jump="changes-section">Changes</button>
+        <button type="button" data-jump="returns-section">Returns</button>
+        <button type="button" data-jump="lots-section">Tax lots</button>
+        <button type="button" data-jump="drift-section">Target mix</button>
+        <button type="button" data-jump="stress-section">What-if</button>
+        <button type="button" data-jump="timeline-section">Timeline</button>
+      </nav>
+
       <section aria-labelledby="history-h" id="history-section" hidden>
         <h2 id="history-h" data-help="history">Value at each statement</h2>
         <p class="subtle">
@@ -210,81 +220,38 @@
           <div class="table-wrap" id="history-classes"></div>
         </div>
       </section>
-      <section aria-labelledby="drift-h" id="drift-section" hidden>
-        <h2 id="drift-h" data-help="drift">Target mix and drift</h2>
+
+      <section aria-labelledby="changes-h" id="changes-section" hidden>
+        <h2 id="changes-h" data-help="changes">What changed between statements</h2>
         <p class="subtle">
-          Enter the share of your portfolio you are aiming for in each asset class (they must add up to 100%).
-          The table shows how far each class is from its target, as of the statement dates. It states a gap, not what to do about it.
-          Your targets are stored in this app's database, with your statements.
+          Compares your holdings on two statement dates. Each change in value is split into what came from
+          holding more or less (bought or sold) and what came from price moves. This is worked out from
+          statement values, not from your trades.
         </p>
-        <div class="card">
-          <form id="drift-form" class="toolbar" novalidate>
-            <div id="drift-inputs" class="drift-inputs"></div>
-            <span id="drift-sum" role="status"></span>
-            <button type="submit" id="drift-save">Save targets</button>
-            <button type="button" id="drift-clear">Clear targets</button>
-          </form>
-          <p id="drift-message" class="subtle" role="status"></p>
-          <div class="table-wrap">
-            <table id="drift" class="cards">
-              <thead>
-                <tr><th scope="col">Asset class</th><th scope="col" class="num">Now</th><th scope="col" class="num">Target</th><th scope="col" class="num">Gap (points)</th><th scope="col" class="num">Gap in rupees</th></tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
+        <div class="controls">
+          <label>From <select id="chg-from"></select></label>
+          <label>To <select id="chg-to"></select></label>
+        </div>
+        <div id="changes-summary" class="subtle"></div>
+        <div id="changes-warnings"></div>
+        <div class="table-wrap">
+          <table id="changes" class="cards">
+            <thead>
+              <tr>
+                <th scope="col">Holding</th>
+                <th scope="col">Change</th>
+                <th scope="col" class="num">Quantity</th>
+                <th scope="col" class="num">Value before</th>
+                <th scope="col" class="num">Value after</th>
+                <th scope="col" class="num">Buying or selling</th>
+                <th scope="col" class="num">Price moves</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
         </div>
       </section>
-      <section aria-labelledby="stress-h" id="stress-section" hidden>
-        <h2 id="stress-h" data-help="stress">What if prices fall? (a what-if, not a forecast)</h2>
-        <p class="subtle">
-          Type a percentage for each asset class. The result is simple arithmetic on your statement values, as shown
-          below. It is an assumption you choose, not a prediction.
-        </p>
-        <div class="card">
-          <div class="toolbar">
-            <button type="button" id="stress-preset">Everything falls 20%</button>
-            <button type="button" id="stress-reset">Reset</button>
-          </div>
-          <div class="table-wrap">
-            <table id="stress" class="cards">
-              <thead>
-                <tr><th scope="col">Asset class</th><th scope="col" class="num">Now</th><th scope="col" class="num">Change in price (%)</th><th scope="col" class="num">After</th><th scope="col" class="num">Difference</th></tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
-          <p id="stress-summary" class="subtle" role="status"></p>
-        </div>
-      </section>
-      <section aria-labelledby="timeline-h" id="timeline-section" hidden>
-        <h2 id="timeline-h" data-help="timeline">Timeline</h2>
-        <p class="subtle">
-          Statement dates and the mutual fund transactions your CAMS or KFintech statements list, newest first.
-          Dividends and corporate actions on shares are not in these statements, so they do not appear here.
-        </p>
-        <div class="card">
-          <div class="toolbar">
-            <label>Show
-              <select id="timeline-filter">
-                <option value="all">Everything</option>
-                <option value="statement">Statements only</option>
-                <option value="transaction">Transactions only</option>
-              </select>
-            </label>
-            <span id="timeline-count" role="status"></span>
-          </div>
-          <div class="table-wrap">
-            <table id="timeline" class="cards">
-              <thead>
-                <tr><th scope="col">Date</th><th scope="col">Event</th><th scope="col">Detail</th><th scope="col" class="num">Amount</th></tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
-          <p><button type="button" id="timeline-more" hidden>Show more</button></p>
-        </div>
-      </section>
+
       <section aria-labelledby="returns-h" id="returns-section" hidden>
         <h2 id="returns-h" data-help="returns">Returns on mutual funds (XIRR)</h2>
         <p class="subtle">
@@ -339,34 +306,81 @@
         </div>
       </section>
 
-      <section aria-labelledby="changes-h" id="changes-section" hidden>
-        <h2 id="changes-h" data-help="changes">What changed between statements</h2>
+      <section aria-labelledby="drift-h" id="drift-section" hidden>
+        <h2 id="drift-h" data-help="drift">Target mix and drift</h2>
         <p class="subtle">
-          Compares your holdings on two statement dates. Each change in value is split into what came from
-          holding more or less (bought or sold) and what came from price moves. This is worked out from
-          statement values, not from your trades.
+          Enter the share of your portfolio you are aiming for in each asset class (they must add up to 100%).
+          The table shows how far each class is from its target, as of the statement dates. It states a gap, not what to do about it.
+          Your targets are stored in this app's database, with your statements.
         </p>
-        <div class="controls">
-          <label>From <select id="chg-from"></select></label>
-          <label>To <select id="chg-to"></select></label>
+        <div class="card">
+          <form id="drift-form" class="toolbar" novalidate>
+            <div id="drift-inputs" class="drift-inputs"></div>
+            <span id="drift-sum" role="status"></span>
+            <button type="submit" id="drift-save">Save targets</button>
+            <button type="button" id="drift-clear">Clear targets</button>
+          </form>
+          <p id="drift-message" class="subtle" role="status"></p>
+          <div class="table-wrap">
+            <table id="drift" class="cards">
+              <thead>
+                <tr><th scope="col">Asset class</th><th scope="col" class="num">Now</th><th scope="col" class="num">Target</th><th scope="col" class="num">Gap (points)</th><th scope="col" class="num">Gap in rupees</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
         </div>
-        <div id="changes-summary" class="subtle"></div>
-        <div id="changes-warnings"></div>
-        <div class="table-wrap">
-          <table id="changes" class="cards">
-            <thead>
-              <tr>
-                <th scope="col">Holding</th>
-                <th scope="col">Change</th>
-                <th scope="col" class="num">Quantity</th>
-                <th scope="col" class="num">Value before</th>
-                <th scope="col" class="num">Value after</th>
-                <th scope="col" class="num">Buying or selling</th>
-                <th scope="col" class="num">Price moves</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
+      </section>
+
+      <section aria-labelledby="stress-h" id="stress-section" hidden>
+        <h2 id="stress-h" data-help="stress">What if prices fall? (a what-if, not a forecast)</h2>
+        <p class="subtle">
+          Type a percentage for each asset class. The result is simple arithmetic on your statement values, as shown
+          below. It is an assumption you choose, not a prediction.
+        </p>
+        <div class="card">
+          <div class="toolbar">
+            <button type="button" id="stress-preset">Everything falls 20%</button>
+            <button type="button" id="stress-reset">Reset</button>
+          </div>
+          <div class="table-wrap">
+            <table id="stress" class="cards">
+              <thead>
+                <tr><th scope="col">Asset class</th><th scope="col" class="num">Now</th><th scope="col" class="num">Change in price (%)</th><th scope="col" class="num">After</th><th scope="col" class="num">Difference</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <p id="stress-summary" class="subtle" role="status"></p>
+        </div>
+      </section>
+
+      <section aria-labelledby="timeline-h" id="timeline-section" hidden>
+        <h2 id="timeline-h" data-help="timeline">Timeline</h2>
+        <p class="subtle">
+          Statement dates and the mutual fund transactions your CAMS or KFintech statements list, newest first.
+          Dividends and corporate actions on shares are not in these statements, so they do not appear here.
+        </p>
+        <div class="card">
+          <div class="toolbar">
+            <label>Show
+              <select id="timeline-filter">
+                <option value="all">Everything</option>
+                <option value="statement">Statements only</option>
+                <option value="transaction">Transactions only</option>
+              </select>
+            </label>
+            <span id="timeline-count" role="status"></span>
+          </div>
+          <div class="table-wrap">
+            <table id="timeline" class="cards">
+              <thead>
+                <tr><th scope="col">Date</th><th scope="col">Event</th><th scope="col">Detail</th><th scope="col" class="num">Amount</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <p><button type="button" id="timeline-more" hidden>Show more</button></p>
         </div>
       </section>
     </div>

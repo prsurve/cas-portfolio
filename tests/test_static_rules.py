@@ -265,9 +265,15 @@ def test_danger_button_text_is_readable_in_both_themes():
         assert contrast(t["bg"], t["loss"]) >= 4.5, f"{name}: danger button text"
 
 
+def _section(html, section_id):
+    """The text of one <section>, up to its closing tag, so the order of the sections does not matter."""
+    start = html.index(f'id="{section_id}"')
+    return html[start:html.index("</section>", start)]
+
+
 def test_returns_section_states_its_limits_and_asks_only_when_shown():
     html, js = (STATIC / "index.html").read_text(), (STATIC / "returns.js").read_text()
-    section = html[html.index('id="returns-section"'):html.index('id="changes-section"')]
+    section = _section(html, "returns-section")
     for phrase in ("whole holding", "never estimated", "not comparable", "not tax advice"):
         assert phrase in section, f"the Returns section must say: {phrase}"
     assert 'document.getElementById("page-performance").hidden' in js, "returns are worked out only while the page shows"
@@ -340,7 +346,7 @@ def test_history_by_class_table_labels_every_value_cell():
 
 def test_lots_section_states_its_limits_and_asks_only_when_shown():
     html, js = (STATIC / "index.html").read_text(), (STATIC / "lots.js").read_text()
-    section = html[html.index('id="lots-section"'):html.index('id="changes-section"')]
+    section = _section(html, "lots-section")
     for phrase in ("whole holding", "never estimated", "not tax advice", "oldest lots first"):
         assert phrase in section, f"the Lots section must say: {phrase}"
     assert 'document.getElementById("page-performance").hidden' in js, "lots are worked out only while the page shows"
@@ -373,3 +379,12 @@ def test_no_utility_class_is_assembled_from_pieces():
                 continue
             assert not re.search(r"""class(?:Name)?\s*[:=]\s*[`"'][^`"']*(?:bg|text|border|grid-cols|gap|p|m)-[`"']\s*\+""", line), \
                 f"{path.name}: a utility class built by concatenation: {line.strip()[:80]}"
+
+
+def test_performance_page_has_jump_links_to_every_section():
+    html = (STATIC / "index.html").read_text()
+    page = html[html.index('id="page-performance"'):html.index('id="page-imports"')]
+    jumps = re.findall(r'data-jump="([\w-]+)"', page)
+    sections = re.findall(r'<section [^>]*id="([\w-]+-section)"', page)
+    assert jumps == sections and len(sections) == 7, "each section has a link, in page order"
+    assert re.search(r"\.page section\s*\{[^}]*scroll-margin-top", CSS_SOURCE.read_text()), "jumps must clear the sticky header"

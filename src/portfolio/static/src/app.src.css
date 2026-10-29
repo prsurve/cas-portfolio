@@ -83,6 +83,9 @@ h1 { font-weight: 700; }
 code { font-size: 0.85em; }
 ol.steps { list-style: decimal; }  /* the reset also removes list markers; these lists need them */
 .facts-list, .help ul, .caveats { list-style: disc; }
+input[type="text"], input[type="number"], input[type="password"], input[type="search"], input:not([type]) {
+  font: inherit; font-size: 0.875rem; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); }
+input[type="number"] { max-width: 9rem; }
 input[type="file"]::file-selector-button { font: inherit; font-size: 0.875rem; margin-right: var(--space-3); padding: var(--space-2) var(--space-3);
   border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); cursor: pointer; }
 input[type="file"]::file-selector-button:hover { border-color: var(--accent); }
@@ -176,6 +179,7 @@ caption { text-align: left; font-weight: 600; font-size: 0.8rem; color: var(--mu
 .toolbar input[type="search"] { min-width: 230px; }
 .toolbar label:has(input[type="search"]) { flex: 1 1 260px; }
 .toolbar label:has(input[type="search"]) input { width: 100%; }
+.drift-inputs { display: flex; flex-wrap: wrap; gap: var(--space-3); flex: 1 1 auto; }
 .toolbar [role="status"] { margin-left: auto; align-self: center; }
 th button.sort { all: unset; cursor: pointer; font-weight: 600; color: inherit; font-size: inherit; }
 th button.sort:hover, th button.sort:focus-visible { color: var(--text); text-decoration: underline; }
@@ -247,6 +251,12 @@ main { min-width: 0; }
 .nav a[aria-current="page"] { color: var(--text); font-weight: 600; background: var(--surface); border-left-color: var(--accent); }
 .skip { position: absolute; left: -9999px; top: var(--space-2); }
 .skip:focus { left: var(--space-2); z-index: 20; background: var(--surface); padding: var(--space-2) var(--space-3); border-radius: var(--radius); }
+/* In-page section links on long pages. */
+.subnav { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-2) 0 var(--space-3); }
+.subnav button { border-radius: 999px; padding: 4px var(--space-3); color: var(--muted); }
+.subnav button:hover { color: var(--text); }
+.page section { scroll-margin-top: 72px; }  /* clear the sticky header */
+
 /* Header above every page: which date the numbers are from, and the actions that apply everywhere. */
 .topbar { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3);
   padding: var(--space-2) 0 var(--space-3); margin-bottom: var(--space-2); background: var(--bg); border-bottom: 1px solid var(--border); }

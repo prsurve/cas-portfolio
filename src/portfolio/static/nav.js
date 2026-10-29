@@ -31,6 +31,22 @@
     };
 
     initTheme();
+    // In-page jumps (the Performance page is long): scroll to the section and move focus to its heading.
+    for (const button of document.querySelectorAll("[data-jump]")) {
+      const target = document.getElementById(button.dataset.jump);
+      // A section that has nothing to show is hidden by the script that owns it; its link follows.
+      const sync = () => { button.hidden = target.hidden; };
+      new MutationObserver(sync).observe(target, { attributes: true, attributeFilter: ["hidden"] });
+      sync();
+      button.addEventListener("click", () => {
+        const section = document.getElementById(button.dataset.jump);
+        if (!section || section.hidden) return;
+        const heading = section.querySelector("h2");
+        section.scrollIntoView({ block: "start" });
+        heading.setAttribute("tabindex", "-1");
+        heading.focus({ preventScroll: true });
+      });
+    }
     window.addEventListener("hashchange", () => {
       const found = route(location.hash);
       if (found) show(found.page, found.arg, true);
