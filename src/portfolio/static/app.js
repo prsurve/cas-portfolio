@@ -456,6 +456,7 @@ async function load() {
     loadDrift();  // not awaited: the targets failing must not break the page
     renderHoldings(portfolio);
     loadReturns();  // only does anything while the Performance page is showing
+    loadLots();
     if (currentHoldingKey !== null) showHoldings(currentHoldingKey, false);  // a reload may have changed it
     renderStatements(statements.statements);
     loadAudit();  // not awaited: the activity list failing must not break the page
@@ -492,7 +493,7 @@ window.Nav.init((page, arg, moveFocus) => {
   redrawSized();
   if (page === "settings") loadSettings();
   if (page === "reports") loadSnapshots();
-  if (page === "performance") loadReturns();
+  if (page === "performance") { loadReturns(); loadLots(); }
   if (page === "holdings") showHoldings(arg, moveFocus);
   else currentHoldingKey = null;  // so a reload while on another page does not fetch a detail nobody is looking at
 });
